@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RoomQ Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-block">
+          <img class="brand-logo" src="assets/roomq-classroom-orbit-logo.png" alt="RoomQ" />
+        </div>
+
+        <nav class="sidebar-nav" aria-label="Main navigation">
+          <div class="nav-group">
+            <p class="nav-section-label">Overview</p>
+            <a href="index.html" class="nav-item active" aria-current="page"><span class="nav-icon">◫</span>Dashboard</a>
+          </div>
+          <div class="nav-group">
+            <p class="nav-section-label">Spaces</p>
+            <a href="classrooms.html" class="nav-item"><span class="nav-icon">▣</span>Classrooms</a>
+          </div>
+          <div class="nav-group">
+            <p class="nav-section-label">Scheduling</p>
+            <a href="schedules.html" class="nav-item"><span class="nav-icon">▤</span>Schedules</a>
+            <a href="schedules.html#facultyAssignment" class="nav-item"><span class="nav-icon">◍</span>Faculty Assignment</a>
+            <a href="assignments.html" class="nav-item"><span class="nav-icon">◍</span>Assignments</a>
+            <a href="conflicts.html" class="nav-item"><span class="nav-icon">⚑</span>Conflicts</a>
+          </div>
+          <div class="nav-group">
+            <p class="nav-section-label">Administration</p>
+            <a href="reports.html" class="nav-item"><span class="nav-icon">▥</span>Reports</a>
+            <a href="activity-logs.html" class="nav-item"><span class="nav-icon">◷</span>Activity Logs</a>
+          </div>
+          <div class="nav-group">
+            <p class="nav-section-label">Account</p>
+            <a href="login.html" class="nav-item"><span class="nav-icon">↪</span>Sign in</a>
+          </div>
+        </nav>
+
+        <div class="profile-box">
+          <div class="mini-avatar">AS</div>
+          <div>
+            <strong>Academic Staff</strong>
+            <span>Scheduling</span>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">NORSU-MC 1 <span id="todayDate"></span></p>
+            <h1>Classroom Operations Dashboard</h1>
+          </div>
+
+          <div class="topbar-actions">
+            <label class="search-box" aria-label="Search">
+              <span>⌕</span>
+              <input type="text" value="Search classrooms" aria-label="Search classrooms" />
+            </label>
+            <button class="icon-button dark" aria-label="Notifications">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" />
+                <path d="M10 21h4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8" />
+              </svg>
+            </button>
+            <button class="icon-button" aria-label="Alerts">◔</button>
+            <div class="user-pill">
+              <div class="user-avatar">AR</div>
+              <div>
+                <strong>Arlo Reyes</strong>
+                <span>Administrator</span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <section class="campus-hero" aria-labelledby="campus-hero-title">
+          <div class="campus-hero-copy">
+            <p class="campus-kicker"><span></span> NORSU · Main Campus 1</p>
+            <h2 id="campus-hero-title">A brighter view of your campus classrooms.</h2>
+            <p class="campus-description">Find learning spaces across campus and see classroom availability at a glance.</p>
+            <div class="campus-actions">
+              <a class="campus-button primary" href="#availability-overview">Check availability <span>→</span></a>
+              <a class="campus-button secondary" href="#campus-map">Explore campus map</a>
+            </div>
+            <div class="campus-note"><span class="campus-dot"></span> One campus. Every classroom, in view.</div>
+          </div>
+
+          <figure class="campus-map" id="campus-map">
+            <img src="assets/norsu-campus-masterplan.webp" alt="Isometric view of the NORSU campus masterplan with blue-roofed buildings and sports facilities" />
+            <figcaption><span class="map-pin">⌖</span> Negros Oriental State University <small>Main Campus</small></figcaption>
+          </figure>
+        </section>
+
+        <section class="dashboard-stats" aria-label="Classroom summary">
+          <article class="summary-card summary-primary">
+            <div class="summary-icon">▣</div>
+            <div><p>Total Scheduled Classes</p><strong id="dashboardTotalClasses">—</strong></div>
+            <span class="summary-accent"></span>
+          </article>
+          <article class="summary-card">
+            <div class="summary-icon accent">◍</div>
+            <div><p>Assigned Classrooms</p><strong id="dashboardAssignedRooms">—</strong></div>
+            <span class="summary-accent"></span>
+          </article>
+          <article class="summary-card">
+            <div class="summary-icon navy">◐</div>
+            <div><p>Today's Classes</p><strong id="dashboardTodayClasses">—</strong></div>
+            <span class="summary-accent"></span>
+          </article>
+          <article class="summary-card">
+            <div class="summary-icon sky">▤</div>
+            <div><p>Unassigned Classes</p><strong id="dashboardUnassignedClasses">—</strong></div>
+            <span class="summary-accent"></span>
+          </article>
+        </section>
+
+        <section class="panel availability-section" id="availability-overview" aria-labelledby="availability-heading">
+          <div class="availability-heading">
+            <div>
+              <p class="panel-kicker">Room availability</p>
+              <h2 id="availability-heading">Classrooms across campus</h2>
+            </div>
+            <span class="availability-legend"><i></i> Current time range</span>
+          </div>
+
+          <div class="room-cards" id="dashboardAvailabilityCards"></div>
+          <p class="schedule-empty-message" id="dashboardAvailabilityEmpty">Availability data is loading.</p>
+        </section>
+      </main>
+    </div>
+    <script src="script.js"></script>
+    <script src="roomq-time.js"></script>
+    <script src="roomq-api.js"></script>
+    <script src="dashboard.js"></script>
+  </body>
+</html>

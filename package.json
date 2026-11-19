@@ -1,0 +1,13 @@
+{
+  "name": "roomq-classroom-management",
+  "version": "1.0.0",
+  "private": true,
+  "description": "RoomQ classroom scheduling and availability application",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

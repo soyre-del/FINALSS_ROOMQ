@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Conflict Monitoring | RoomQ</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-shell conflict-shell">
+      <aside class="sidebar">
+        <div class="brand-block"><img class="brand-logo" src="assets/roomq-classroom-orbit-logo.png" alt="RoomQ" /></div>
+        <nav class="sidebar-nav" aria-label="Main navigation">
+          <div class="nav-group">
+            <p class="nav-section-label">Overview</p>
+            <a href="index.html" class="nav-item"><span class="nav-icon">◫</span>Dashboard</a>
+          </div>
+          <div class="nav-group">
+            <p class="nav-section-label">Spaces</p>
+            <a href="classrooms.html" class="nav-item"><span class="nav-icon">▣</span>Classrooms</a>
+          </div>
+          <div class="nav-group">
+            <p class="nav-section-label">Scheduling</p>
+            <a href="schedules.html" class="nav-item"><span class="nav-icon">▤</span>Schedules</a>
+            <a href="schedules.html#facultyAssignment" class="nav-item"><span class="nav-icon">◍</span>Faculty Assignment</a>
+            <a href="assignments.html" class="nav-item"><span class="nav-icon">◍</span>Assignments</a>
+            <a href="conflicts.html" class="nav-item active" aria-current="page"><span class="nav-icon">⚑</span>Conflicts</a>
+          </div>
+          <div class="nav-group">
+            <p class="nav-section-label">Administration</p>
+            <a href="reports.html" class="nav-item"><span class="nav-icon">▥</span>Reports</a>
+            <a href="activity-logs.html" class="nav-item"><span class="nav-icon">◷</span>Activity Logs</a>
+          </div>
+          <div class="nav-group">
+            <p class="nav-section-label">Account</p>
+            <a href="login.html" class="nav-item"><span class="nav-icon">↪</span>Sign in</a>
+          </div>
+        </nav>
+        <div class="profile-box"><div class="mini-avatar">AS</div><div><strong>Academic Staff</strong><span>Scheduling</span></div></div>
+      </aside>
+      <main class="main-content conflict-main">
+        <header class="topbar"><div><p class="eyebrow">NORSU-MC 1 <span id="todayDate"></span></p><h1>Conflict Monitoring</h1></div><a class="assignment-back-link" href="schedules.html">Manage schedules <span>→</span></a></header>
+        <section class="panel assignment-auth-panel" aria-label="Administrator sign in"><div id="adminSessionPanel"></div></section>
+        <section class="schedule-summary-grid" aria-label="Conflict summary">
+          <article class="summary-card summary-primary"><div class="summary-icon">⚑</div><div><p>Total Detected Conflicts</p><strong id="conflictStatTotal">—</strong></div></article>
+          <article class="summary-card"><div class="summary-icon navy">!</div><div><p>Unresolved</p><strong id="conflictStatOpen">—</strong></div></article>
+          <article class="summary-card"><div class="summary-icon accent">✓</div><div><p>Resolved</p><strong id="conflictStatResolved">0</strong></div></article>
+          <article class="summary-card"><div class="summary-icon sky">◷</div><div><p>Conflicts Today</p><strong id="conflictStatToday">—</strong></div></article>
+        </section>
+        <section class="panel conflict-monitor-panel">
+          <div class="schedule-section-heading"><div><p class="panel-kicker">Server-validated schedules</p><h2>Detected overlaps</h2></div><button type="button" id="refreshConflicts" class="roomq-secondary-button">Refresh</button></div>
+          <div class="conflict-filter-grid">
+            <label class="assignment-field"><span>Building</span><select id="conflictBuilding"><option value="">All buildings</option></select></label>
+            <label class="assignment-field"><span>Classroom</span><select id="conflictClassroom"><option value="">All classrooms</option></select></label>
+            <label class="assignment-field"><span>Date</span><input type="date" id="conflictDate" /></label>
+            <label class="assignment-field"><span>Status</span><select id="conflictStatus"><option value="all">All statuses</option><option value="unresolved">Unresolved</option></select></label>
+          </div>
+          <div class="responsive-table-wrap">
+            <table class="roomq-table">
+              <thead><tr><th>Classroom</th><th>Building</th><th>Date / Day</th><th>Existing class</th><th>Conflicting class</th><th>Existing time</th><th>Requested time</th><th>Overlap</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="conflictTableBody"></tbody>
+            </table>
+          </div>
+          <p id="conflictEmpty" class="schedule-empty-message" hidden>No schedule conflicts are currently detected.</p>
+          <p id="conflictError" class="assignment-feedback" role="status"></p>
+        </section>
+        <dialog id="conflictDetailsDialog" class="conflict-details-dialog">
+          <div class="schedule-section-heading"><div><p class="panel-kicker">Conflict details</p><h2>Overlapping assignments</h2></div><button type="button" id="closeConflictDetails" class="roomq-secondary-button">Close</button></div>
+          <div id="conflictDetailsContent" class="conflict-details-content"></div>
+        </dialog>
+      </main>
+    </div>
+    <script src="script.js"></script>
+    <script src="roomq-time.js"></script>
+    <script src="roomq-data.js"></script>
+    <script src="roomq-api.js"></script>
+    <script src="conflicts.js"></script>
+  </body>
+</html>
