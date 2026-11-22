@@ -253,7 +253,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     'user-guide': document.getElementById('pane-user-guide')
   };
 
-  function switchUserView(targetKey) {
+  function switchUserView(targetKey, updateHash = false) {
     if (!userViewPanes[targetKey]) return;
     userViewButtons.forEach((btn) => {
       const match = btn.dataset.viewTarget === targetKey;
@@ -265,13 +265,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         userViewPanes[key].classList.toggle('active', key === targetKey);
       }
     });
+    if (updateHash) {
+      history.replaceState(null, '', targetKey === 'user-guide' ? '#guide' : '#buildings');
+    }
+  }
+
+  function handleUserHash() {
+    const hash = window.location.hash.toLowerCase();
+    if (hash.includes('guide')) {
+      switchUserView('user-guide', false);
+    } else if (hash.includes('building')) {
+      switchUserView('user-buildings', false);
+    }
   }
 
   userViewButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
-      switchUserView(btn.dataset.viewTarget);
+      switchUserView(btn.dataset.viewTarget, true);
     });
   });
+
+  window.addEventListener('hashchange', handleUserHash);
+  handleUserHash();
 
   statusButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -334,11 +349,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (statRes) statRes.textContent = String(res);
 
     // Update Account CTA Banner based on auth state
+    const bannerIcon = document.getElementById('userAccountBannerIcon');
+    const bannerTitle = document.getElementById('userAccountBannerTitle');
     const bannerText = document.getElementById('userAccountBannerText');
     const bannerBtn = document.getElementById('userAccountBannerBtn');
     if (session && session.authenticated && session.user && bannerText && bannerBtn) {
-      bannerText.textContent = `Signed in as ${session.user.username}. You're ready to reserve any available classroom directly from the floor plan.`;
-      bannerBtn.textContent = 'Reserve a classroom';
+      if (bannerIcon) bannerIcon.innerHTML = '<i class="bi bi-patch-check-fill text-primary"></i>';
+      if (bannerTitle) bannerTitle.textContent = `Signed in as ${session.user.username}`;
+      bannerText.textContent = "Your account is verified. You're ready to reserve any open classroom directly from the interactive floor plan.";
+      bannerBtn.innerHTML = '<i class="bi bi-door-open"></i> Reserve a Classroom';
       bannerBtn.href = 'classrooms.html';
     }
 

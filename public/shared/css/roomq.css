@@ -3771,6 +3771,171 @@ a.kpi-card:hover {
   border: 1px solid #bfdbfe;
 }
 
+/* ---------- User Reservation Guide Styling ---------- */
+
+.guide-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.guide-step-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  background-color: var(--rq-surface);
+  border: 1px solid var(--rq-border);
+  border-radius: var(--rq-radius-card);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.guide-step-card:hover {
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+}
+
+.guide-step-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.guide-step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  border: 1px solid #bfdbfe;
+}
+
+.guide-step-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--rq-radius-control);
+  background-color: var(--rq-surface-subtle);
+  color: var(--rq-primary);
+  font-size: 1.2rem;
+}
+
+.guide-step-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--rq-ink-strong);
+  letter-spacing: -0.015em;
+}
+
+.guide-step-card p {
+  margin: 0 0 1.25rem;
+  font-size: 0.84rem;
+  color: var(--rq-muted);
+  line-height: 1.55;
+  flex-grow: 1;
+}
+
+.guide-step-card .btn {
+  align-self: flex-start;
+}
+
+.guide-policies-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  padding: 1.25rem;
+  background-color: var(--rq-surface-subtle);
+  border: 1px solid var(--rq-border);
+  border-radius: var(--rq-radius-card);
+  margin-bottom: 1.5rem;
+}
+
+.guide-policy-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.guide-policy-item i {
+  font-size: 1.15rem;
+  color: #2563eb;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.guide-policy-item strong {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--rq-ink-strong);
+  margin-bottom: 0.2rem;
+}
+
+.guide-policy-item span {
+  font-size: 0.78rem;
+  color: var(--rq-muted);
+  line-height: 1.45;
+}
+
+.account-cta-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background-color: #ffffff;
+  border: 1px solid var(--rq-border);
+  border-radius: var(--rq-radius-card);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);
+}
+
+.account-cta-content {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  min-width: 0;
+  flex: 1 1 300px;
+}
+
+.account-cta-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  font-size: 1.35rem;
+  flex-shrink: 0;
+}
+
+.account-cta-title {
+  margin: 0;
+  font-size: 0.925rem;
+  font-weight: 700;
+  color: var(--rq-ink-strong);
+}
+
+.account-cta-desc {
+  margin: 0.2rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--rq-muted);
+  line-height: 1.5;
+}
+
 /* ---------- Utilities ---------- */
 
 [hidden] { display: none !important; }
