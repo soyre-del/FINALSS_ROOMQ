@@ -20,7 +20,10 @@
     }
     try {
       const target = new URL(requested, window.location.origin);
-      return target.origin === window.location.origin && target.pathname === '/client/classrooms.html'
+      if (target.origin === window.location.origin && target.pathname === '/client/classrooms.html') {
+        target.pathname = '/users/classrooms.html';
+      }
+      return target.origin === window.location.origin && target.pathname === '/users/classrooms.html'
         ? `${target.pathname}${target.search}${target.hash}`
         : null;
     } catch {
@@ -75,7 +78,7 @@
       confirmPassword.value = '';
       window.location.assign(result.user.role === 'admin'
         ? '/admin/index.html'
-        : getSafeReturnPath() || '/client/classrooms.html');
+        : getSafeReturnPath() || '/users/classrooms.html');
     } catch (error) {
       feedback.textContent = error.message;
       submit.disabled = false;

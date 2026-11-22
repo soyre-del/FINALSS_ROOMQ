@@ -160,15 +160,28 @@ test('root redirects to the dashboard and the sign-in page has no account-type s
   assert.equal(legacyIndex.status, 302);
   assert.equal(legacyIndex.headers.get('location'), '/admin/index.html');
 
-  const legacyLogin = await fetch(`${url}/login.html?returnTo=%2Fclient%2Fclassrooms.html`, { redirect: 'manual' });
+  const legacyLogin = await fetch(`${url}/login.html?returnTo=%2Fusers%2Fclassrooms.html`, { redirect: 'manual' });
   assert.equal(legacyLogin.status, 302);
-  assert.equal(legacyLogin.headers.get('location'), '/client/login.html?returnTo=%2Fclient%2Fclassrooms.html');
+  assert.equal(legacyLogin.headers.get('location'), '/users/login.html?returnTo=%2Fusers%2Fclassrooms.html');
 
-  const loginPage = await fetch(`${url}/client/login.html`);
+  const legacyClientUrl = await fetch(`${url}/client/login.html?from=old-link`, { redirect: 'manual' });
+  assert.equal(legacyClientUrl.status, 302);
+  assert.equal(legacyClientUrl.headers.get('location'), '/users/login.html?from=old-link');
+
+  const legacyClassroomsUrl = await fetch(`${url}/client/classrooms.html`, { redirect: 'manual' });
+  assert.equal(legacyClassroomsUrl.status, 302);
+  assert.equal(legacyClassroomsUrl.headers.get('location'), '/users/classrooms.html');
+
+  const loginPage = await fetch(`${url}/users/login.html`);
   assert.equal(loginPage.status, 200);
   assert.doesNotMatch(await loginPage.text(), /data-auth-role|auth-role-switch|adminSetupKey/);
+  assert.equal((await fetch(`${url}/users/classrooms.html`)).status, 200);
 
-  for (const asset of ['admin/css/style.css', 'client/css/style.css', 'css/style.css', 'shared/js/roomq-api.js', 'admin/js/dashboard.js']) {
+  for (const asset of [
+    'admin/css/style.css', 'users/css/style.css', 'css/style.css',
+    'shared/js/roomq-api.js', 'admin/js/dashboard.js',
+    'users/js/login.js', 'users/js/classroom-explorer.js'
+  ]) {
     const response = await fetch(`${url}/${asset}`);
     assert.equal(response.status, 200);
   }

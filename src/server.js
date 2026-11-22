@@ -167,6 +167,14 @@ function createServer({
 
   function serveStatic(request, response, url) {
     const pathname = url.pathname;
+    if (pathname.startsWith('/client/')) {
+      response.writeHead(302, {
+        'Cache-Control': 'no-store',
+        Location: `/users/${pathname.slice('/client/'.length)}${url.search}`
+      });
+      response.end();
+      return;
+    }
     if (pathname === '/') {
       response.writeHead(302, {
         'Cache-Control': 'no-store',
@@ -201,7 +209,7 @@ function createServer({
     if (clientPages.has(legacyPath)) {
       response.writeHead(302, {
         'Cache-Control': 'no-store',
-        Location: `/client/${legacyPath}${url.search}`
+        Location: `/users/${legacyPath}${url.search}`
       });
       response.end();
       return;
@@ -223,7 +231,9 @@ function createServer({
       'roomq-api.js': 'shared/js/roomq-api.js'
     };
     let relativePath = legacyPath;
-    if (pageScriptMap[legacyPath]) {
+    if (legacyPath.startsWith('users/')) {
+      relativePath = `client/${legacyPath.slice('users/'.length)}`;
+    } else if (pageScriptMap[legacyPath]) {
       relativePath = pageScriptMap[legacyPath];
     } else if (sharedScriptMap[legacyPath]) {
       relativePath = sharedScriptMap[legacyPath];
