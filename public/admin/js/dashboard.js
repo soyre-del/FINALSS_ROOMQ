@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     rooms.slice(0, 4).forEach((room) => {
       const card = document.createElement('a');
       card.className = `room-card room-${room.status}`;
-      card.href = `/user/classrooms.html?building=${encodeURIComponent(room.buildingId)}&floor=${encodeURIComponent(room.floorId)}&room=${encodeURIComponent(room.regionId)}`;
+      card.href = `/admin/classrooms.html?building=${encodeURIComponent(room.buildingId)}&floor=${encodeURIComponent(room.floorId)}&room=${encodeURIComponent(room.regionId)}`;
       const top = document.createElement('div');
       top.className = 'room-card-top';
       const symbol = document.createElement('span');

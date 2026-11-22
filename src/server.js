@@ -167,20 +167,48 @@ function createServer({
 
   function serveStatic(request, response, url) {
     const pathname = url.pathname;
+    if (pathname === '/admin' || pathname === '/admin/' || pathname === '/admin/index.html') {
+      response.writeHead(302, {
+        'Cache-Control': 'no-store',
+        Location: `/admin/dashboard.html${url.search}`
+      });
+      response.end();
+      return;
+    }
+    if (pathname === '/user' || pathname === '/user/' || pathname === '/user/index.html') {
+      response.writeHead(302, {
+        'Cache-Control': 'no-store',
+        Location: `/user/dashboard.html${url.search}`
+      });
+      response.end();
+      return;
+    }
     for (const prefix of ['/client/', '/users/']) {
       if (pathname.startsWith(prefix)) {
+        const subpath = pathname.slice(prefix.length);
+        const target = subpath && subpath !== 'index.html' ? subpath : 'dashboard.html';
         response.writeHead(302, {
           'Cache-Control': 'no-store',
-          Location: `/user/${pathname.slice(prefix.length)}${url.search}`
+          Location: `/user/${target}${url.search}`
         });
         response.end();
         return;
       }
     }
-    if (pathname === '/') {
+    if (pathname === '/client' || pathname === '/users') {
       response.writeHead(302, {
         'Cache-Control': 'no-store',
-        Location: `/admin/dashboard.html${url.search}`
+        Location: `/user/dashboard.html${url.search}`
+      });
+      response.end();
+      return;
+    }
+    if (pathname === '/' || pathname === '/index.html') {
+      const user = getCurrentUser(request);
+      const destination = user && user.role === 'user' ? '/user/dashboard.html' : '/admin/dashboard.html';
+      response.writeHead(302, {
+        'Cache-Control': 'no-store',
+        Location: `${destination}${url.search}`
       });
       response.end();
       return;
@@ -204,6 +232,14 @@ function createServer({
       response.writeHead(302, {
         'Cache-Control': 'no-store',
         Location: `/admin/dashboard.html${url.search}`
+      });
+      response.end();
+      return;
+    }
+    if (legacyPath === 'user/index.html') {
+      response.writeHead(302, {
+        'Cache-Control': 'no-store',
+        Location: `/user/dashboard.html${url.search}`
       });
       response.end();
       return;
@@ -232,6 +268,7 @@ function createServer({
       'reports.js': 'admin/js/reports.js',
       'activity-logs.js': 'admin/js/activity-logs.js',
       'classroom-explorer.js': 'user/js/classroom-explorer.js',
+      'admin/js/classroom-explorer.js': 'user/js/classroom-explorer.js',
       'login.js': 'user/js/login.js'
     };
     const sharedScriptMap = {

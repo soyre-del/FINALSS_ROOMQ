@@ -20,13 +20,20 @@
     }
     try {
       const target = new URL(requested, window.location.origin);
-      if (target.origin === window.location.origin &&
-          ['/client/classrooms.html', '/users/classrooms.html'].includes(target.pathname)) {
-        target.pathname = '/user/classrooms.html';
+      if (target.origin !== window.location.origin) {
+        return null;
       }
-      return target.origin === window.location.origin && target.pathname === '/user/classrooms.html'
-        ? `${target.pathname}${target.search}${target.hash}`
-        : null;
+      let pathname = target.pathname;
+      if (['/client/classrooms.html', '/users/classrooms.html'].includes(pathname)) {
+        pathname = '/user/classrooms.html';
+      }
+      if (['/client/dashboard.html', '/users/dashboard.html'].includes(pathname)) {
+        pathname = '/user/dashboard.html';
+      }
+      if (pathname.startsWith('/user/') || pathname.startsWith('/admin/')) {
+        return `${pathname}${target.search}${target.hash}`;
+      }
+      return null;
     } catch {
       return null;
     }
@@ -77,9 +84,15 @@
       );
       password.value = '';
       confirmPassword.value = '';
-      window.location.assign(result.user.role === 'admin'
-        ? '/admin/dashboard.html'
-        : getSafeReturnPath() || '/user/dashboard.html');
+      const returnPath = getSafeReturnPath();
+      if (result.user.role === 'admin') {
+        window.location.assign(returnPath || '/admin/dashboard.html');
+      } else {
+        const userSafePath = (returnPath && !returnPath.startsWith('/admin/'))
+          ? returnPath
+          : '/user/dashboard.html';
+        window.location.assign(userSafePath);
+      }
     } catch (error) {
       feedback.textContent = error.message;
       submit.disabled = false;

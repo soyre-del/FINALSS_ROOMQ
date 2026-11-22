@@ -358,7 +358,10 @@ document.addEventListener('DOMContentLoaded', () => {
       floor: currentFloor.id,
       room: region.id
     });
-    roomBookingLoginLink.href = `/user/login.html?returnTo=${encodeURIComponent(`/user/classrooms.html?${returnParams}`)}`;
+    const currentPath = window.location.pathname.startsWith('/admin/')
+      ? '/admin/classrooms.html'
+      : '/user/classrooms.html';
+    roomBookingLoginLink.href = `/user/login.html?returnTo=${encodeURIComponent(`${currentPath}?${returnParams}`)}`;
     roomBookingDate.value = availabilityDate.value || localDate;
     roomBookingStartPicker.setValue(availabilityStart.value);
     roomBookingEndPicker.setValue(availabilityEnd.value);
@@ -374,7 +377,8 @@ document.addEventListener('DOMContentLoaded', () => {
       floor: currentFloor.id,
       room: `${currentBuilding.id}-${currentFloor.id}-${region.id}`
     });
-    viewFullScheduleLink.href = `/admin/schedules.html?${scheduleQuery}`;
+    const isAdmin = window.location.pathname.startsWith('/admin/');
+    viewFullScheduleLink.href = isAdmin ? `schedules.html?${scheduleQuery}` : `/admin/schedules.html?${scheduleQuery}`;
     const room = getRoomAvailability(region.id);
     detailsCategory.textContent = region.name ? 'Named classroom' : 'Classroom';
     detailsCapacity.textContent = room && room.capacity !== null
