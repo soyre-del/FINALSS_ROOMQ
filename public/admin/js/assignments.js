@@ -304,7 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', renderFloorPlan);
 
   window.RoomQApi.mountAdminPanel(authPanel, (user) => {
-    authenticated = Boolean(user);
+    authenticated = Boolean(user && user.role === 'admin');
     submitButton.disabled = !authenticated;
     renderRecords();
   });

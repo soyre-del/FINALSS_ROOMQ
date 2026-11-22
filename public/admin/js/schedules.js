@@ -541,7 +541,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function setAuthenticated(user) {
-    authenticated = Boolean(user);
+    authenticated = Boolean(user && user.role === 'admin');
     formControls.forEach((control) => {
       control.disabled = !authenticated;
     });

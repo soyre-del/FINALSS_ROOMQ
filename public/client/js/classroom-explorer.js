@@ -667,6 +667,38 @@ document.addEventListener('DOMContentLoaded', () => {
       : 'Sign in or create a user account to reserve this classroom.';
     roomBookingLoginLink.hidden = Boolean(user);
   });
+  const navBookClassroom = document.getElementById('navBookClassroom');
+  if (navBookClassroom) {
+    navBookClassroom.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (selectedRegionId && currentFloor) {
+        const idx = currentFloor.regions.findIndex((r) => r.id === selectedRegionId);
+        if (idx >= 0) {
+          selectRegion(currentFloor.regions[idx], idx);
+          return;
+        }
+      }
+      if (currentFloor && currentFloor.regions && currentFloor.regions.length > 0) {
+        selectRegion(currentFloor.regions[0], 0);
+      } else {
+        const sel = document.getElementById('buildingSelector');
+        if (sel) sel.focus();
+      }
+    });
+  }
+
+  const navCheckAvailability = document.getElementById('navCheckAvailability');
+  if (navCheckAvailability) {
+    navCheckAvailability.addEventListener('click', (e) => {
+      e.preventDefault();
+      const dateInput = document.getElementById('availabilityDate');
+      if (dateInput) {
+        dateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        dateInput.focus();
+      }
+    });
+  }
+
   const requestedRegion = query.get('room');
   if (requestedRegion && currentFloor) {
     const regionIndex = currentFloor.regions.findIndex((region) => region.id === requestedRegion);

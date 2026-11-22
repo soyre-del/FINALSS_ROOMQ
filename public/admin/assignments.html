@@ -18,7 +18,7 @@
           <div class="brand-block">
             <a class="brand-link" href="index.html">
               <span class="brand-mark"><i class="bi bi-buildings"></i></span>
-              <span><span class="brand-name">RoomQ</span><span class="brand-sub">Classroom Management</span></span>
+              <span><span class="brand-name">RoomQ</span><span class="brand-sub">Admin Portal</span></span>
             </a>
             <button type="button" class="btn-close btn-close-white d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#appSidebar" aria-label="Close menu"></button>
           </div>
@@ -29,10 +29,10 @@
             </div>
             <div class="nav-group">
               <p class="nav-section-label">Spaces</p>
-              <a href="../client/classrooms.html" class="nav-item"><span class="nav-icon"><i class="bi bi-door-open"></i></span>Classrooms</a>
+              <a href="../client/classrooms.html" class="nav-item"><span class="nav-icon"><i class="bi bi-door-open"></i></span>Classrooms (Explorer)</a>
             </div>
             <div class="nav-group">
-              <p class="nav-section-label">Scheduling</p>
+              <p class="nav-section-label">Scheduling (Admin)</p>
               <a href="schedules.html" class="nav-item"><span class="nav-icon"><i class="bi bi-calendar3"></i></span>Schedules</a>
               <a href="schedules.html#facultyAssignment" class="nav-item"><span class="nav-icon"><i class="bi bi-person-badge"></i></span>Faculty Assignment</a>
               <a href="assignments.html" class="nav-item active" aria-current="page"><span class="nav-icon"><i class="bi bi-journal-check"></i></span>Assignments</a>
@@ -45,12 +45,15 @@
             </div>
             <div class="nav-group">
               <p class="nav-section-label">Account</p>
-              <a href="../client/login.html" class="nav-item"><span class="nav-icon"><i class="bi bi-box-arrow-in-right"></i></span>Sign in</a>
+              <a href="../client/login.html" class="nav-item" id="sidebarAccountLink"><span class="nav-icon"><i class="bi bi-box-arrow-in-right"></i></span>Sign in</a>
             </div>
           </nav>
-          <div class="profile-box">
-            <div class="mini-avatar">AS</div>
-            <div><strong>Academic Staff</strong><span>Scheduling</span></div>
+          <div class="profile-box" id="sidebarProfileBox">
+            <div class="mini-avatar" id="sidebarMiniAvatar">AD</div>
+            <div class="flex-grow-1 min-w-0">
+              <strong id="sidebarProfileName" class="text-truncate">Administrator</strong>
+              <span id="sidebarProfileRole">Admin Portal</span>
+            </div>
           </div>
         </div>
       </aside>
