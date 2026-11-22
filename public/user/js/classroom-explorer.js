@@ -358,7 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
       floor: currentFloor.id,
       room: region.id
     });
-    roomBookingLoginLink.href = `/users/login.html?returnTo=${encodeURIComponent(`/users/classrooms.html?${returnParams}`)}`;
+    roomBookingLoginLink.href = `/user/login.html?returnTo=${encodeURIComponent(`/user/classrooms.html?${returnParams}`)}`;
     roomBookingDate.value = availabilityDate.value || localDate;
     roomBookingStartPicker.setValue(availabilityStart.value);
     roomBookingEndPicker.setValue(availabilityEnd.value);

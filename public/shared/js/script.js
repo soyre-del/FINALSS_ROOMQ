@@ -54,11 +54,11 @@ async function syncSessionAndNavigation() {
   }
 
   const isAdminPage = window.location.pathname.includes('/admin/');
-  const isClientPage = window.location.pathname.includes('/users/');
+  const isUserPage = window.location.pathname.includes('/user/');
 
   // Access control guard: Non-admin users cannot access admin pages
   if (isAdminPage && currentUser && currentUser.role !== 'admin') {
-    window.location.replace('/users/classrooms.html?denied=admin');
+    window.location.replace('/user/classrooms.html?denied=admin');
     return;
   }
 
@@ -118,16 +118,16 @@ async function syncSessionAndNavigation() {
         } catch {
           // ignore
         }
-        window.location.assign('/users/login.html');
+        window.location.assign('/user/login.html');
       });
     } else {
-      const loginUrl = isClientPage ? 'login.html' : '../users/login.html';
+      const loginUrl = isUserPage ? 'login.html' : '../user/login.html';
       link.innerHTML = '<span class="nav-icon"><i class="bi bi-box-arrow-in-right"></i></span>Sign in';
       link.href = loginUrl;
     }
   });
 
-  // Client-specific elements:
+  // User-specific elements:
   const adminPortalNavGroup = document.getElementById('adminPortalNavGroup');
   if (adminPortalNavGroup) {
     adminPortalNavGroup.hidden = !(currentUser && currentUser.role === 'admin');

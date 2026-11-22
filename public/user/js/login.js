@@ -20,10 +20,11 @@
     }
     try {
       const target = new URL(requested, window.location.origin);
-      if (target.origin === window.location.origin && target.pathname === '/client/classrooms.html') {
-        target.pathname = '/users/classrooms.html';
+      if (target.origin === window.location.origin &&
+          ['/client/classrooms.html', '/users/classrooms.html'].includes(target.pathname)) {
+        target.pathname = '/user/classrooms.html';
       }
-      return target.origin === window.location.origin && target.pathname === '/users/classrooms.html'
+      return target.origin === window.location.origin && target.pathname === '/user/classrooms.html'
         ? `${target.pathname}${target.search}${target.hash}`
         : null;
     } catch {
@@ -77,8 +78,8 @@
       password.value = '';
       confirmPassword.value = '';
       window.location.assign(result.user.role === 'admin'
-        ? '/admin/index.html'
-        : getSafeReturnPath() || '/users/classrooms.html');
+        ? '/admin/dashboard.html'
+        : getSafeReturnPath() || '/user/dashboard.html');
     } catch (error) {
       feedback.textContent = error.message;
       submit.disabled = false;

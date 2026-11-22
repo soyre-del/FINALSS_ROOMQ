@@ -167,18 +167,20 @@ function createServer({
 
   function serveStatic(request, response, url) {
     const pathname = url.pathname;
-    if (pathname.startsWith('/client/')) {
-      response.writeHead(302, {
-        'Cache-Control': 'no-store',
-        Location: `/users/${pathname.slice('/client/'.length)}${url.search}`
-      });
-      response.end();
-      return;
+    for (const prefix of ['/client/', '/users/']) {
+      if (pathname.startsWith(prefix)) {
+        response.writeHead(302, {
+          'Cache-Control': 'no-store',
+          Location: `/user/${pathname.slice(prefix.length)}${url.search}`
+        });
+        response.end();
+        return;
+      }
     }
     if (pathname === '/') {
       response.writeHead(302, {
         'Cache-Control': 'no-store',
-        Location: `/admin/index.html${url.search}`
+        Location: `/admin/dashboard.html${url.search}`
       });
       response.end();
       return;
@@ -194,10 +196,18 @@ function createServer({
 
     const legacyPath = decodedPath.replace(/^\/+/, '');
     const adminPages = new Set([
-      'index.html', 'schedules.html', 'assignments.html',
+      'dashboard.html', 'schedules.html', 'assignments.html',
       'conflicts.html', 'reports.html', 'activity-logs.html'
     ]);
-    const clientPages = new Set(['classrooms.html', 'login.html']);
+    const userPages = new Set(['classrooms.html', 'login.html']);
+    if (legacyPath === 'index.html' || legacyPath === 'admin/index.html') {
+      response.writeHead(302, {
+        'Cache-Control': 'no-store',
+        Location: `/admin/dashboard.html${url.search}`
+      });
+      response.end();
+      return;
+    }
     if (adminPages.has(legacyPath)) {
       response.writeHead(302, {
         'Cache-Control': 'no-store',
@@ -206,10 +216,10 @@ function createServer({
       response.end();
       return;
     }
-    if (clientPages.has(legacyPath)) {
+    if (userPages.has(legacyPath)) {
       response.writeHead(302, {
         'Cache-Control': 'no-store',
-        Location: `/users/${legacyPath}${url.search}`
+        Location: `/user/${legacyPath}${url.search}`
       });
       response.end();
       return;
@@ -221,8 +231,8 @@ function createServer({
       'conflicts.js': 'admin/js/conflicts.js',
       'reports.js': 'admin/js/reports.js',
       'activity-logs.js': 'admin/js/activity-logs.js',
-      'classroom-explorer.js': 'client/js/classroom-explorer.js',
-      'login.js': 'client/js/login.js'
+      'classroom-explorer.js': 'user/js/classroom-explorer.js',
+      'login.js': 'user/js/login.js'
     };
     const sharedScriptMap = {
       'script.js': 'shared/js/script.js',
@@ -231,14 +241,14 @@ function createServer({
       'roomq-api.js': 'shared/js/roomq-api.js'
     };
     let relativePath = legacyPath;
-    if (legacyPath.startsWith('users/')) {
-      relativePath = `client/${legacyPath.slice('users/'.length)}`;
+    if (legacyPath.startsWith('user/')) {
+      relativePath = legacyPath;
     } else if (pageScriptMap[legacyPath]) {
       relativePath = pageScriptMap[legacyPath];
     } else if (sharedScriptMap[legacyPath]) {
       relativePath = sharedScriptMap[legacyPath];
     } else if (legacyPath === 'style.css' || legacyPath === 'css/style.css') {
-      relativePath = 'client/css/style.css';
+      relativePath = 'user/css/style.css';
     }
     const filePath = path.resolve(resolvedRoot, relativePath);
     if (!filePath.startsWith(`${resolvedRoot}${path.sep}`) &&
