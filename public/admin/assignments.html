@@ -30,12 +30,10 @@
             <div class="nav-group">
               <p class="nav-section-label">Spaces</p>
               <a href="classrooms.html" class="nav-item"><span class="nav-icon"><i class="bi bi-door-open"></i></span>Classrooms</a>
-              <a href="classrooms.html#availabilityDate" class="nav-item"><span class="nav-icon"><i class="bi bi-calendar-check"></i></span>Availability</a>
             </div>
             <div class="nav-group">
               <p class="nav-section-label">Scheduling</p>
               <a href="schedules.html" class="nav-item"><span class="nav-icon"><i class="bi bi-calendar3"></i></span>Schedules</a>
-              <a href="schedules.html#facultyAssignment" class="nav-item"><span class="nav-icon"><i class="bi bi-person-badge"></i></span>Faculty Assignment</a>
               <a href="assignments.html" class="nav-item active" aria-current="page"><span class="nav-icon"><i class="bi bi-journal-check"></i></span>Assignments</a>
               <a href="conflicts.html" class="nav-item"><span class="nav-icon"><i class="bi bi-exclamation-triangle"></i></span>Conflicts</a>
             </div>
@@ -65,128 +63,276 @@
             <button class="menu-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebar" aria-controls="appSidebar" aria-label="Open menu"><i class="bi bi-list"></i></button>
             <div>
               <p class="eyebrow">NORSU-MC 1 · <span id="todayDate"></span></p>
-              <h1>Room Assignments</h1>
+              <h1 id="assignmentPageTitle">Assignments</h1>
             </div>
           </div>
           <a class="btn btn-outline-primary assignment-back-link" href="classrooms.html">View classroom availability <i class="bi bi-arrow-right"></i></a>
         </header>
 
-        <section class="assignment-intro" aria-labelledby="assignmentIntroHeading">
-          <p class="panel-kicker">Room use management</p>
-          <h2 id="assignmentIntroHeading">Schedule a room for a date and time.</h2>
-          <p>Reservations and class schedules share the same database and availability checks.</p>
-        </section>
-
         <section class="panel assignment-auth-panel" aria-label="Administrator sign in">
           <div id="adminSessionPanel"></div>
         </section>
 
-        <div class="assignment-layout">
-          <section class="panel assignment-form-panel" aria-labelledby="assignmentFormHeading">
-            <div class="assignment-panel-heading">
-              <span class="assignment-panel-icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
-              <div>
-                <p class="panel-kicker">New assignment</p>
-                <h2 id="assignmentFormHeading">Manage room use</h2>
-              </div>
-            </div>
+        <!-- Dual View Switcher: Single hub, distinct views -->
+        <nav class="assignment-view-switcher" role="tablist" aria-label="Assignment view tabs">
+          <button type="button" class="assignment-view-tab active" id="tabBtnRooms" role="tab" aria-selected="true" aria-controls="paneRoomAssignments" data-assignment-tab="rooms">
+            <i class="bi bi-door-open"></i> Classroom Allocations
+          </button>
+          <button type="button" class="assignment-view-tab" id="tabBtnFaculty" role="tab" aria-selected="false" aria-controls="paneFacultyAssignments" data-assignment-tab="faculty">
+            <i class="bi bi-person-badge"></i> Faculty Assignments
+          </button>
+        </nav>
 
-            <form id="assignmentForm" class="assignment-form">
-              <label class="assignment-field">
-                <span>Building</span>
-                <select id="assignmentBuilding" class="form-select" required>
-                  <option value="">Select a building</option>
-                </select>
-              </label>
-
-              <label class="assignment-field">
-                <span>Floor</span>
-                <select id="assignmentFloor" class="form-select" required disabled>
-                  <option value="">Select a floor</option>
-                </select>
-              </label>
-
-              <label class="assignment-field assignment-room-field">
-                <span>Room</span>
-                <select id="assignmentRoom" class="form-select" required disabled>
-                  <option value="">Select a room</option>
-                </select>
-              </label>
-
-              <label class="assignment-field assignment-date-field">
-                <span>Date</span>
-                <input id="assignmentDate" class="form-control" type="date" required />
-              </label>
-
-              <fieldset class="assignment-time-field">
-                <legend>From</legend>
-                <div class="time-picker-controls" id="assignmentStartPicker">
-                  <select class="form-select" data-time-hour aria-label="Start hour" required></select>
-                  <span aria-hidden="true">:</span>
-                  <select class="form-select" data-time-minute aria-label="Start minute" required></select>
-                  <select class="form-select" data-time-period aria-label="Start AM or PM" required></select>
-                </div>
-                <input type="hidden" id="assignmentStart" />
-              </fieldset>
-
-              <fieldset class="assignment-time-field">
-                <legend>Until</legend>
-                <div class="time-picker-controls" id="assignmentEndPicker">
-                  <select class="form-select" data-time-hour aria-label="End hour" required></select>
-                  <span aria-hidden="true">:</span>
-                  <select class="form-select" data-time-minute aria-label="End minute" required></select>
-                  <select class="form-select" data-time-period aria-label="End AM or PM" required></select>
-                </div>
-                <input type="hidden" id="assignmentEnd" />
-              </fieldset>
-
-              <button class="btn btn-primary assignment-submit" type="submit"><i class="bi bi-check2"></i> Save assignment</button>
-              <p id="assignmentFeedback" class="assignment-feedback" role="status"></p>
-            </form>
-
-            <p class="storage-scope-note"><i class="bi bi-info-circle"></i> Room reservations are stored centrally and checked against class schedules.</p>
+        <!-- View 1: Classroom Allocations Pane -->
+        <div class="assignment-view-pane active" id="paneRoomAssignments" role="tabpanel" aria-labelledby="tabBtnRooms">
+          <section class="assignment-intro" aria-labelledby="assignmentIntroHeading">
+            <p class="panel-kicker">Room use management</p>
+            <h2 id="assignmentIntroHeading">Schedule a room for a date and time.</h2>
+            <p>Reservations and class schedules share the same database and availability checks.</p>
           </section>
 
-          <div class="assignment-right-column">
-            <section class="panel assignment-list-panel" aria-labelledby="assignmentListHeading">
+          <div class="assignment-layout">
+            <section class="panel assignment-form-panel" aria-labelledby="assignmentFormHeading">
               <div class="assignment-panel-heading">
-                <span class="assignment-panel-icon assignment-list-icon" aria-hidden="true"><i class="bi bi-list-check"></i></span>
+                <span class="assignment-panel-icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
                 <div>
-                  <p class="panel-kicker">Room schedule</p>
-                  <h2 id="assignmentListHeading">Saved assignments</h2>
+                  <p class="panel-kicker">New assignment</p>
+                  <h2 id="assignmentFormHeading">Manage room use</h2>
                 </div>
-                <span class="assignment-count" id="assignmentCount">0</span>
               </div>
-              <p class="assignment-list-description">Remove an assignment when the room is no longer in use.</p>
-              <div id="assignmentList" class="assignment-record-list" aria-live="polite"></div>
+
+              <form id="assignmentForm" class="assignment-form">
+                <label class="assignment-field">
+                  <span>Building</span>
+                  <select id="assignmentBuilding" class="form-select" required>
+                    <option value="">Select a building</option>
+                  </select>
+                </label>
+
+                <label class="assignment-field">
+                  <span>Floor</span>
+                  <select id="assignmentFloor" class="form-select" required disabled>
+                    <option value="">Select a floor</option>
+                  </select>
+                </label>
+
+                <label class="assignment-field assignment-room-field">
+                  <span>Room</span>
+                  <select id="assignmentRoom" class="form-select" required disabled>
+                    <option value="">Select a room</option>
+                  </select>
+                </label>
+
+                <label class="assignment-field assignment-date-field">
+                  <span>Date</span>
+                  <input id="assignmentDate" class="form-control" type="date" required />
+                </label>
+
+                <fieldset class="assignment-time-field">
+                  <legend>From</legend>
+                  <div class="time-picker-controls" id="assignmentStartPicker">
+                    <select class="form-select" data-time-hour aria-label="Start hour" required></select>
+                    <span aria-hidden="true">:</span>
+                    <select class="form-select" data-time-minute aria-label="Start minute" required></select>
+                    <select class="form-select" data-time-period aria-label="Start AM or PM" required></select>
+                  </div>
+                  <input type="hidden" id="assignmentStart" />
+                </fieldset>
+
+                <fieldset class="assignment-time-field">
+                  <legend>Until</legend>
+                  <div class="time-picker-controls" id="assignmentEndPicker">
+                    <select class="form-select" data-time-hour aria-label="End hour" required></select>
+                    <span aria-hidden="true">:</span>
+                    <select class="form-select" data-time-minute aria-label="End minute" required></select>
+                    <select class="form-select" data-time-period aria-label="End AM or PM" required></select>
+                  </div>
+                  <input type="hidden" id="assignmentEnd" />
+                </fieldset>
+
+                <button class="btn btn-primary assignment-submit" type="submit"><i class="bi bi-check2"></i> Save assignment</button>
+                <p id="assignmentFeedback" class="assignment-feedback" role="status"></p>
+              </form>
+
+              <p class="storage-scope-note"><i class="bi bi-info-circle"></i> Room reservations are stored centrally and checked against class schedules.</p>
             </section>
 
-            <section class="panel assignment-floorplan-panel" aria-labelledby="assignmentFloorPlanHeading">
-              <div class="assignment-panel-heading">
-                <span class="assignment-panel-icon assignment-list-icon" aria-hidden="true"><i class="bi bi-map"></i></span>
-                <div>
-                  <p class="panel-kicker">Selected building and floor</p>
-                  <h2 id="assignmentFloorPlanHeading">Floor plan preview</h2>
+            <div class="assignment-right-column">
+              <section class="panel assignment-list-panel" aria-labelledby="assignmentListHeading">
+                <div class="assignment-panel-heading">
+                  <span class="assignment-panel-icon assignment-list-icon" aria-hidden="true"><i class="bi bi-list-check"></i></span>
+                  <div>
+                    <p class="panel-kicker">Room schedule</p>
+                    <h2 id="assignmentListHeading">Saved assignments</h2>
+                  </div>
+                  <span class="assignment-count" id="assignmentCount">0</span>
                 </div>
-              </div>
-              <p id="assignmentFloorPlanLabel" class="assignment-floorplan-label">Choose a building and floor</p>
-              <div class="assignment-floorplan-canvas" id="assignmentFloorPlanCanvas" aria-label="Interactive room layout preview">
-                <div class="assignment-plan-stage" id="assignmentPlanStage" hidden>
-                  <div class="assignment-plan-source-layer" id="assignmentPlanSourceLayer">
-                    <img
-                      class="assignment-floorplan-image"
-                      src="../assets/floor-layout-reference.png"
-                      alt=""
-                    />
-                    <div class="assignment-plan-overlay-layer" id="assignmentPlanOverlayLayer"></div>
+                <p class="assignment-list-description">Remove an assignment when the room is no longer in use.</p>
+                <div id="assignmentList" class="assignment-record-list" aria-live="polite"></div>
+              </section>
+
+              <section class="panel assignment-floorplan-panel" aria-labelledby="assignmentFloorPlanHeading">
+                <div class="assignment-panel-heading">
+                  <span class="assignment-panel-icon assignment-list-icon" aria-hidden="true"><i class="bi bi-map"></i></span>
+                  <div>
+                    <p class="panel-kicker">Selected building and floor</p>
+                    <h2 id="assignmentFloorPlanHeading">Floor plan preview</h2>
                   </div>
                 </div>
-                <p class="assignment-floorplan-empty" id="assignmentFloorPlanEmpty">
-                  Select a building and floor to preview its layout.
-                </p>
+                <p id="assignmentFloorPlanLabel" class="assignment-floorplan-label">Choose a building and floor</p>
+                <div class="assignment-floorplan-canvas" id="assignmentFloorPlanCanvas" aria-label="Interactive room layout preview">
+                  <div class="assignment-plan-stage" id="assignmentPlanStage" hidden>
+                    <div class="assignment-plan-source-layer" id="assignmentPlanSourceLayer">
+                      <img
+                        class="assignment-floorplan-image"
+                        src="../assets/floor-layout-reference.png"
+                        alt=""
+                      />
+                      <div class="assignment-plan-overlay-layer" id="assignmentPlanOverlayLayer"></div>
+                    </div>
+                  </div>
+                  <p class="assignment-floorplan-empty" id="assignmentFloorPlanEmpty">
+                    Select a building and floor to preview its layout.
+                  </p>
+                </div>
+                <p class="assignment-floorplan-caption">Select a room in the plan or use the room selector to choose the assignment room.</p>
+              </section>
+            </div>
+          </div>
+        </div>
+
+        <!-- View 2: Faculty Assignments Pane -->
+        <div class="assignment-view-pane" id="paneFacultyAssignments" role="tabpanel" aria-labelledby="tabBtnFaculty">
+          <section class="assignment-intro" aria-labelledby="facultyIntroHeading">
+            <p class="panel-kicker">Faculty workload & schedule assignment</p>
+            <h2 id="facultyIntroHeading">Assign instructors to subjects, rooms, and schedules.</h2>
+            <p>Allocate faculty members to classes, monitor teaching loads, and check for faculty schedule conflicts.</p>
+          </section>
+
+          <div class="assignment-layout">
+            <section class="panel assignment-form-panel" aria-labelledby="facultyFormHeading">
+              <div class="assignment-panel-heading">
+                <span class="assignment-panel-icon" aria-hidden="true"><i class="bi bi-person-plus"></i></span>
+                <div>
+                  <p class="panel-kicker">Faculty allocation</p>
+                  <h2 id="facultyFormHeading">Assign faculty member</h2>
+                </div>
               </div>
-              <p class="assignment-floorplan-caption">Select a room in the plan or use the room selector to choose the assignment room.</p>
+
+              <form id="facultyAssignmentForm" class="assignment-form">
+                <label class="assignment-field">
+                  <span>Instructor / Faculty Name</span>
+                  <input id="facultyInstructor" class="form-control" type="text" placeholder="e.g. Prof. Maria Santos" required maxlength="120" />
+                </label>
+
+                <div class="row g-2">
+                  <div class="col-md-7">
+                    <label class="assignment-field">
+                      <span>Subject / Course</span>
+                      <input id="facultyCourse" class="form-control" type="text" placeholder="e.g. IT 312 - Web Systems" required maxlength="120" />
+                    </label>
+                  </div>
+                  <div class="col-md-5">
+                    <label class="assignment-field">
+                      <span>Section</span>
+                      <input id="facultySection" class="form-control" type="text" placeholder="e.g. BSIT 3-A" required maxlength="80" />
+                    </label>
+                  </div>
+                </div>
+
+                <label class="assignment-field">
+                  <span>Building</span>
+                  <select id="facultyBuilding" class="form-select">
+                    <option value="">All / unassigned</option>
+                  </select>
+                </label>
+
+                <label class="assignment-field">
+                  <span>Floor</span>
+                  <select id="facultyFloor" class="form-select" disabled>
+                    <option value="">Select a floor</option>
+                  </select>
+                </label>
+
+                <label class="assignment-field">
+                  <span>Classroom</span>
+                  <select id="facultyClassroom" class="form-select" disabled>
+                    <option value="">Unassigned class</option>
+                  </select>
+                </label>
+
+                <label class="assignment-field">
+                  <span>Repeat Schedule</span>
+                  <select id="facultyRecurrence" class="form-select">
+                    <option value="weekly" selected>Weekly recurring</option>
+                    <option value="once">One-time date</option>
+                  </select>
+                </label>
+
+                <fieldset id="facultyWeekdaysField" class="weekday-picker">
+                  <legend>Recurring weekdays</legend>
+                  <label><input type="checkbox" name="facultyDay" value="1" /> Mon</label>
+                  <label><input type="checkbox" name="facultyDay" value="2" /> Tue</label>
+                  <label><input type="checkbox" name="facultyDay" value="3" /> Wed</label>
+                  <label><input type="checkbox" name="facultyDay" value="4" /> Thu</label>
+                  <label><input type="checkbox" name="facultyDay" value="5" /> Fri</label>
+                  <label><input type="checkbox" name="facultyDay" value="6" /> Sat</label>
+                  <label><input type="checkbox" name="facultyDay" value="0" /> Sun</label>
+                </fieldset>
+
+                <label class="assignment-field" id="facultyDateField" hidden>
+                  <span>Date</span>
+                  <input id="facultyDate" class="form-control" type="date" />
+                </label>
+
+                <fieldset class="assignment-time-field">
+                  <legend>Start Time</legend>
+                  <div class="time-picker-controls" id="facultyStartPicker">
+                    <select class="form-select" data-time-hour aria-label="Start hour" required></select>
+                    <span aria-hidden="true">:</span>
+                    <select class="form-select" data-time-minute aria-label="Start minute" required></select>
+                    <select class="form-select" data-time-period aria-label="Start AM or PM" required></select>
+                  </div>
+                  <input type="hidden" id="facultyStartTime" />
+                </fieldset>
+
+                <fieldset class="assignment-time-field">
+                  <legend>End Time</legend>
+                  <div class="time-picker-controls" id="facultyEndPicker">
+                    <select class="form-select" data-time-hour aria-label="End hour" required></select>
+                    <span aria-hidden="true">:</span>
+                    <select class="form-select" data-time-minute aria-label="End minute" required></select>
+                    <select class="form-select" data-time-period aria-label="End AM or PM" required></select>
+                  </div>
+                  <input type="hidden" id="facultyEndTime" />
+                </fieldset>
+
+                <button class="btn btn-primary assignment-submit" type="submit" id="facultySubmitButton">
+                  <i class="bi bi-person-check"></i> Save Faculty Assignment
+                </button>
+                <p id="facultyFeedback" class="assignment-feedback" role="status"></p>
+              </form>
+
+              <p class="storage-scope-note"><i class="bi bi-shield-check"></i> Faculty assignments prevent instructor double-booking and room collisions.</p>
             </section>
+
+            <div class="assignment-right-column">
+              <section class="panel assignment-list-panel" aria-labelledby="facultyListHeading">
+                <div class="assignment-panel-heading">
+                  <span class="assignment-panel-icon assignment-list-icon" aria-hidden="true"><i class="bi bi-people"></i></span>
+                  <div>
+                    <p class="panel-kicker">Faculty roster</p>
+                    <h2 id="facultyListHeading">Active faculty assignments</h2>
+                  </div>
+                  <span class="assignment-count" id="facultyCount">0</span>
+                </div>
+                <p class="assignment-list-description">View, search, or remove instructor teaching schedules.</p>
+                <div class="mb-3">
+                  <input type="search" class="form-control form-control-sm" id="facultyFilterInput" placeholder="Filter by instructor, course, or room..." aria-label="Filter faculty assignments" />
+                </div>
+                <div id="facultyAssignmentsList" class="assignment-record-list" aria-live="polite"></div>
+              </section>
+            </div>
           </div>
         </div>
       </main>

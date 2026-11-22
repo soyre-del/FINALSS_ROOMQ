@@ -176,7 +176,132 @@ document.addEventListener('DOMContentLoaded', () => {
       availabilityNote.textContent = `${availabilityRecords.length} classrooms checked for ${availabilityDate.value}, ${window.RoomQTime.format(availabilityStart.value)}–${window.RoomQTime.format(availabilityEnd.value)}.`;
     }
     updateSelectedRoomStatus();
+    renderClassroomDirectory();
   }
+
+  const directoryCards = document.getElementById('classroomsDirectoryCards');
+  const directoryEmpty = document.getElementById('classroomsDirectoryEmpty');
+  const statusFilterButtons = [...document.querySelectorAll('#classroomsStatusFilters [data-status-filter]')];
+  let activeDirectoryStatus = 'all';
+
+  function statusOrder(status) {
+    if (status === 'available') return 0;
+    if (status === 'reserved') return 1;
+    if (status === 'occupied') return 2;
+    return 3;
+  }
+
+  function formatRoomTitle(room) {
+    if (room.roomNumber === null || room.roomNumber === undefined) {
+      return room.name || 'Named room';
+    }
+    return room.name ? `Room ${room.roomNumber} · ${room.name}` : `Room ${room.roomNumber}`;
+  }
+
+  function renderClassroomDirectory() {
+    if (!directoryCards) return;
+
+    const filtered = availabilityRecords
+      .filter((room) => {
+        if (activeDirectoryStatus !== 'all' && room.status !== activeDirectoryStatus) {
+          return false;
+        }
+        return true;
+      })
+      .sort((a, b) => statusOrder(a.status) - statusOrder(b.status) || (a.buildingName || '').localeCompare(b.buildingName || ''));
+
+    directoryCards.replaceChildren();
+
+    filtered.forEach((room) => {
+      const card = document.createElement('article');
+      card.className = `room-card room-${room.status}`;
+      card.style.cursor = 'pointer';
+
+      const top = document.createElement('div');
+      top.className = 'room-card-top';
+
+      const symbol = document.createElement('span');
+      symbol.className = 'room-symbol';
+      symbol.textContent = room.roomNumber === null || room.roomNumber === undefined ? 'R' : String(room.roomNumber).slice(-2);
+
+      const statusBadge = document.createElement('span');
+      statusBadge.className = 'room-status';
+      statusBadge.textContent = room.status[0].toUpperCase() + room.status.slice(1);
+      top.append(symbol, statusBadge);
+
+      const title = document.createElement('h3');
+      title.textContent = formatRoomTitle(room);
+
+      const location = document.createElement('p');
+      location.textContent = `${room.buildingName || ''} · ${room.floorLabel || ''}`;
+
+      const meta = document.createElement('div');
+      meta.className = 'room-card-meta';
+      if (room.capacity !== null && room.capacity !== undefined) {
+        const capChip = document.createElement('span');
+        capChip.className = 'room-meta-chip';
+        capChip.textContent = `${room.capacity} seats`;
+        meta.append(capChip);
+      }
+      if (Array.isArray(room.facilities) && room.facilities.length) {
+        const facChip = document.createElement('span');
+        facChip.className = 'room-meta-chip';
+        facChip.textContent = room.facilities.slice(0, 2).join(', ');
+        meta.append(facChip);
+      }
+
+      const details = document.createElement('small');
+      details.textContent = Array.isArray(room.schedules) && room.schedules.length
+        ? `${room.schedules[0].course || 'Classroom schedule'} · ${window.RoomQTime.format(room.schedules[0].startTime)}–${window.RoomQTime.format(room.schedules[0].endTime)}`
+        : 'Open during this selected time';
+
+      const cta = document.createElement('span');
+      cta.className = 'room-card-cta';
+      cta.textContent = 'Locate on floor plan →';
+
+      card.append(top, title, location);
+      if (meta.childElementCount > 0) {
+        card.append(meta);
+      }
+      card.append(details, cta);
+
+      card.addEventListener('click', () => {
+        if (room.buildingId && (!currentBuilding || currentBuilding.id !== room.buildingId)) {
+          buildingSelector.value = room.buildingId;
+          updateBuilding(room.floorId);
+        } else if (room.floorId && (!currentFloor || currentFloor.id !== room.floorId)) {
+          floorSelector.value = room.floorId;
+          updateFloor();
+        }
+        if (currentFloor && room.regionId) {
+          const idx = currentFloor.regions.findIndex((r) => r.id === room.regionId);
+          if (idx >= 0) {
+            selectRegion(currentFloor.regions[idx], idx);
+          }
+        }
+        floorPlanCanvas?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+
+      directoryCards.append(card);
+    });
+
+    if (directoryEmpty) {
+      directoryEmpty.hidden = filtered.length > 0;
+      if (!filtered.length) {
+        directoryEmpty.textContent = availabilityRecords.length
+          ? 'No classrooms match the selected status filter.'
+          : 'No classroom availability records loaded for this search range.';
+      }
+    }
+  }
+
+  statusFilterButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      activeDirectoryStatus = btn.dataset.statusFilter || 'all';
+      statusFilterButtons.forEach((b) => b.classList.toggle('active', b === btn));
+      renderClassroomDirectory();
+    });
+  });
 
   async function searchAvailability() {
     const requestId = ++availabilityRequestId;
@@ -600,6 +725,48 @@ document.addEventListener('DOMContentLoaded', () => {
   availabilityStart.addEventListener('change', searchAvailability);
   availabilityEnd.addEventListener('change', searchAvailability);
   availabilitySearch.addEventListener('click', searchAvailability);
+
+  // Quick availability presets
+  const presetNow = document.getElementById('presetNow');
+  const presetMorning = document.getElementById('presetMorning');
+  const presetAfternoon = document.getElementById('presetAfternoon');
+
+  function applyPreset(start, end) {
+    const now = new Date();
+    const localIso = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    availabilityDate.value = localIso;
+    availabilityStartPicker.setValue(start);
+    availabilityEndPicker.setValue(end);
+    searchAvailability();
+  }
+
+  if (presetNow) {
+    presetNow.addEventListener('click', () => {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const startH = now.getHours();
+      const startM = Math.floor(now.getMinutes() / 10) * 10;
+      const startStr = `${pad(startH)}:${pad(startM)}`;
+      let endH = startH + 1;
+      let endM = startM;
+      if (endH >= 24) {
+        endH = 23;
+        endM = 59;
+      }
+      const endStr = `${pad(endH)}:${pad(endM)}`;
+      applyPreset(startStr, endStr);
+    });
+  }
+  if (presetMorning) {
+    presetMorning.addEventListener('click', () => {
+      applyPreset('08:00', '12:00');
+    });
+  }
+  if (presetAfternoon) {
+    presetAfternoon.addEventListener('click', () => {
+      applyPreset('13:00', '17:00');
+    });
+  }
   roomBookingForm.addEventListener('submit', saveRoomBooking);
   roomBookingCancel.addEventListener('click', () => roomBookingDialog.close());
   roomBookingDialog.addEventListener('click', (event) => {
@@ -709,5 +876,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (regionIndex >= 0) {
       selectRegion(currentFloor.regions[regionIndex], regionIndex);
     }
+  }
+
+  const statusParam = query.get('status');
+  if (statusParam && ['all', 'available', 'occupied', 'reserved'].includes(statusParam)) {
+    activeDirectoryStatus = statusParam;
+    statusFilterButtons.forEach((b) => b.classList.toggle('active', b.dataset.statusFilter === statusParam));
+    renderClassroomDirectory();
   }
 });

@@ -30,12 +30,10 @@
             <div class="nav-group">
               <p class="nav-section-label">Spaces</p>
               <a href="classrooms.html" class="nav-item active" aria-current="page"><span class="nav-icon"><i class="bi bi-door-open"></i></span>Classrooms</a>
-              <a href="classrooms.html#availabilityDate" class="nav-item" id="navCheckAvailability"><span class="nav-icon"><i class="bi bi-calendar-check"></i></span>Availability</a>
             </div>
             <div class="nav-group">
               <p class="nav-section-label">Scheduling</p>
               <a href="schedules.html" class="nav-item"><span class="nav-icon"><i class="bi bi-calendar3"></i></span>Schedules</a>
-              <a href="schedules.html#facultyAssignment" class="nav-item"><span class="nav-icon"><i class="bi bi-person-badge"></i></span>Faculty Assignment</a>
               <a href="assignments.html" class="nav-item"><span class="nav-icon"><i class="bi bi-journal-check"></i></span>Assignments</a>
               <a href="conflicts.html" class="nav-item"><span class="nav-icon"><i class="bi bi-exclamation-triangle"></i></span>Conflicts</a>
             </div>
@@ -81,59 +79,90 @@
           </div>
         </header>
 
-        <section class="panel explorer-controls" aria-label="Building and availability controls">
-          <label class="explorer-field building-field">
-            <span>Building</span>
-            <select id="buildingSelector" class="form-select" aria-label="Select building"></select>
-          </label>
-
-          <label class="explorer-field floor-field">
-            <span>Floor</span>
-            <select id="floorSelector" class="form-select" aria-label="Select floor" disabled>
-              <option value="">Floor data unavailable</option>
-            </select>
-          </label>
-
-          <div class="explorer-field date-field">
-            <label for="availabilityDate">Check date</label>
-            <input id="availabilityDate" class="form-control" type="date" />
-          </div>
-
-          <div class="explorer-field time-field">
-            <span>From</span>
-            <div class="time-picker-controls" id="availabilityStartPicker">
-              <select class="form-select" data-time-hour aria-label="Start hour"></select>
-              <span aria-hidden="true">:</span>
-              <select class="form-select" data-time-minute aria-label="Start minute"></select>
-              <select class="form-select" data-time-period aria-label="Start AM or PM"></select>
+        <section class="panel availability-search-card" aria-label="Building and availability search console">
+          <div class="availability-search-header">
+            <div class="availability-search-title-wrap">
+              <div class="availability-search-badge-icon"><i class="bi bi-calendar-check"></i></div>
+              <div>
+                <p class="panel-kicker mb-0">Live Space Explorer</p>
+                <h2 class="availability-search-title">Search Classroom Availability</h2>
+              </div>
             </div>
-            <input id="availabilityStart" type="hidden" />
-          </div>
-
-          <div class="explorer-field time-field">
-            <span>Until</span>
-            <div class="time-picker-controls" id="availabilityEndPicker">
-              <select class="form-select" data-time-hour aria-label="End hour"></select>
-              <span aria-hidden="true">:</span>
-              <select class="form-select" data-time-minute aria-label="End minute"></select>
-              <select class="form-select" data-time-period aria-label="End AM or PM"></select>
+            <div class="availability-quick-presets" role="group" aria-label="Quick time presets">
+              <span class="preset-label d-none d-sm-inline">Quick filter:</span>
+              <button type="button" class="preset-btn" id="presetNow"><i class="bi bi-clock"></i> Now (Next 1h)</button>
+              <button type="button" class="preset-btn" id="presetMorning"><i class="bi bi-sun"></i> Morning</button>
+              <button type="button" class="preset-btn" id="presetAfternoon"><i class="bi bi-cloud-sun"></i> Afternoon</button>
             </div>
-            <input id="availabilityEnd" type="hidden" />
           </div>
 
-          <button type="button" class="btn btn-primary assignment-submit availability-search-button" id="availabilitySearch"><i class="bi bi-search"></i> Search availability</button>
+          <div class="availability-controls-grid">
+            <div class="search-field-group location-group">
+              <label class="explorer-field building-field">
+                <span class="field-label"><i class="bi bi-building"></i> Building</span>
+                <select id="buildingSelector" class="form-select" aria-label="Select building"></select>
+              </label>
 
-          <p class="data-connection-note" id="availabilityNote" role="status">
-            Choose a date and time range to check room availability.
-          </p>
-        </section>
+              <label class="explorer-field floor-field">
+                <span class="field-label"><i class="bi bi-layers"></i> Floor</span>
+                <select id="floorSelector" class="form-select" aria-label="Select floor" disabled>
+                  <option value="">Floor data unavailable</option>
+                </select>
+              </label>
+            </div>
 
-        <section class="availability-legend explorer-legend" aria-label="Availability legend">
-          <span class="legend-title">Availability for selected date and time</span>
-          <span><i class="legend-dot available"></i>Available</span>
-          <span><i class="legend-dot occupied"></i>Occupied</span>
-          <span><i class="legend-dot reserved"></i>Reserved</span>
-          <span><i class="legend-dot selected"></i>Selected room</span>
+            <div class="search-field-group timing-group">
+              <div class="explorer-field date-field">
+                <label for="availabilityDate" class="field-label"><i class="bi bi-calendar-event"></i> Check Date</label>
+                <input id="availabilityDate" class="form-control" type="date" />
+              </div>
+
+              <div class="explorer-field time-field">
+                <span class="field-label"><i class="bi bi-clock"></i> Start Time</span>
+                <div class="time-picker-controls" id="availabilityStartPicker">
+                  <select class="form-select" data-time-hour aria-label="Start hour"></select>
+                  <span aria-hidden="true">:</span>
+                  <select class="form-select" data-time-minute aria-label="Start minute"></select>
+                  <select class="form-select" data-time-period aria-label="Start AM or PM"></select>
+                </div>
+                <input id="availabilityStart" type="hidden" />
+              </div>
+
+              <div class="explorer-field time-field">
+                <span class="field-label"><i class="bi bi-clock-history"></i> End Time</span>
+                <div class="time-picker-controls" id="availabilityEndPicker">
+                  <select class="form-select" data-time-hour aria-label="End hour"></select>
+                  <span aria-hidden="true">:</span>
+                  <select class="form-select" data-time-minute aria-label="End minute"></select>
+                  <select class="form-select" data-time-period aria-label="End AM or PM"></select>
+                </div>
+                <input id="availabilityEnd" type="hidden" />
+              </div>
+            </div>
+
+            <div class="search-action-group">
+              <button type="button" class="btn btn-primary availability-search-submit" id="availabilitySearch">
+                <i class="bi bi-search"></i>
+                <span>Check Availability</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="availability-search-footer">
+            <div class="availability-status-pill">
+              <span class="status-pulse-dot"></span>
+              <p class="data-connection-note" id="availabilityNote" role="status">
+                Choose a date and time range to check room availability.
+              </p>
+            </div>
+            <div class="availability-legend-inline" aria-label="Availability legend">
+              <span class="legend-inline-title">Floor plan key:</span>
+              <span><i class="legend-dot available"></i> Available</span>
+              <span><i class="legend-dot occupied"></i> Occupied</span>
+              <span><i class="legend-dot reserved"></i> Reserved</span>
+              <span><i class="legend-dot selected"></i> Selected</span>
+            </div>
+          </div>
         </section>
 
         <div class="explorer-workspace">
@@ -231,6 +260,24 @@
             </section>
           </aside>
         </div>
+
+        <section class="panel classroom-directory-panel mt-4" id="classroomDirectorySection" aria-labelledby="classroomDirectoryHeading">
+          <div class="panel-header-row">
+            <div>
+              <p class="panel-kicker">Live room status</p>
+              <h2 id="classroomDirectoryHeading">Classrooms across campus</h2>
+            </div>
+            <div class="filter-pill-group" id="classroomsStatusFilters" role="group" aria-label="Filter classrooms by status">
+              <button type="button" class="filter-pill active" data-status-filter="all">All</button>
+              <button type="button" class="filter-pill" data-status-filter="available">Available</button>
+              <button type="button" class="filter-pill" data-status-filter="occupied">Occupied</button>
+              <button type="button" class="filter-pill" data-status-filter="reserved">Reserved</button>
+            </div>
+          </div>
+
+          <div class="room-cards" id="classroomsDirectoryCards"></div>
+          <p class="schedule-empty-message" id="classroomsDirectoryEmpty">Loading classroom availability…</p>
+        </section>
       </main>
 
       <dialog class="room-booking-dialog" id="roomBookingDialog" aria-labelledby="roomBookingHeading">

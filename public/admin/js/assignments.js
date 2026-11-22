@@ -1,5 +1,14 @@
 document.addEventListener('DOMContentLoaded', () => {
   const buildings = window.RoomQ && window.RoomQ.buildings;
+
+  // View tabs
+  const tabBtnRooms = document.getElementById('tabBtnRooms');
+  const tabBtnFaculty = document.getElementById('tabBtnFaculty');
+  const paneRoom = document.getElementById('paneRoomAssignments');
+  const paneFaculty = document.getElementById('paneFacultyAssignments');
+  const pageTitle = document.getElementById('assignmentPageTitle');
+
+  // Room Assignment elements
   const form = document.getElementById('assignmentForm');
   const buildingSelect = document.getElementById('assignmentBuilding');
   const floorSelect = document.getElementById('assignmentFloor');
@@ -17,11 +26,34 @@ document.addEventListener('DOMContentLoaded', () => {
   const floorPlanOverlayLayer = document.getElementById('assignmentPlanOverlayLayer');
   const floorPlanLabel = document.getElementById('assignmentFloorPlanLabel');
   const floorPlanEmpty = document.getElementById('assignmentFloorPlanEmpty');
-  const submitButton = form.querySelector('button[type="submit"]');
+  const submitButton = form ? form.querySelector('button[type="submit"]') : null;
   const authPanel = document.getElementById('adminSessionPanel');
+
+  // Faculty Assignment elements
+  const facultyForm = document.getElementById('facultyAssignmentForm');
+  const facultyInstructorInput = document.getElementById('facultyInstructor');
+  const facultyCourseInput = document.getElementById('facultyCourse');
+  const facultySectionInput = document.getElementById('facultySection');
+  const facultyBuildingSelect = document.getElementById('facultyBuilding');
+  const facultyFloorSelect = document.getElementById('facultyFloor');
+  const facultyClassroomSelect = document.getElementById('facultyClassroom');
+  const facultyRecurrenceSelect = document.getElementById('facultyRecurrence');
+  const facultyWeekdaysField = document.getElementById('facultyWeekdaysField');
+  const facultyDateField = document.getElementById('facultyDateField');
+  const facultyDateInput = document.getElementById('facultyDate');
+  const facultyStartInput = document.getElementById('facultyStartTime');
+  const facultyEndInput = document.getElementById('facultyEndTime');
+  const facultySubmitBtn = document.getElementById('facultySubmitButton');
+  const facultyFeedback = document.getElementById('facultyFeedback');
+  const facultyCount = document.getElementById('facultyCount');
+  const facultyFilterInput = document.getElementById('facultyFilterInput');
+  const facultyList = document.getElementById('facultyAssignmentsList');
+
   let records = [];
+  let facultyRecords = [];
   let authenticated = false;
 
+  // Time Pickers
   const startTimePicker = window.RoomQTime.attach(
     document.getElementById('assignmentStartPicker'),
     startInput
@@ -31,13 +63,65 @@ document.addEventListener('DOMContentLoaded', () => {
     endInput
   );
 
+  const facultyStartPicker = window.RoomQTime.attach(
+    document.getElementById('facultyStartPicker'),
+    facultyStartInput
+  );
+  const facultyEndPicker = window.RoomQTime.attach(
+    document.getElementById('facultyEndPicker'),
+    facultyEndInput
+  );
+
   const localDate = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
     .toISOString()
     .slice(0, 10);
-  dateInput.value = localDate;
+  if (dateInput) dateInput.value = localDate;
+  if (facultyDateInput) facultyDateInput.value = localDate;
 
+  // Tab switching logic
+  function switchTab(targetTab, updateHash = true) {
+    const isFaculty = targetTab === 'faculty';
+    if (tabBtnRooms && tabBtnFaculty && paneRoom && paneFaculty) {
+      tabBtnRooms.classList.toggle('active', !isFaculty);
+      tabBtnRooms.setAttribute('aria-selected', String(!isFaculty));
+      tabBtnFaculty.classList.toggle('active', isFaculty);
+      tabBtnFaculty.setAttribute('aria-selected', String(isFaculty));
+
+      paneRoom.classList.toggle('active', !isFaculty);
+      paneFaculty.classList.toggle('active', isFaculty);
+    }
+    if (pageTitle) {
+      pageTitle.textContent = isFaculty ? 'Faculty Assignments' : 'Room Assignments';
+    }
+    if (updateHash) {
+      history.replaceState(null, '', isFaculty ? '#faculty' : '#rooms');
+    }
+    if (!isFaculty) {
+      setTimeout(renderFloorPlan, 50);
+    }
+  }
+
+  if (tabBtnRooms) {
+    tabBtnRooms.addEventListener('click', () => switchTab('rooms'));
+  }
+  if (tabBtnFaculty) {
+    tabBtnFaculty.addEventListener('click', () => switchTab('faculty'));
+  }
+
+  function handleInitialHash() {
+    const hash = window.location.hash.toLowerCase();
+    if (hash.includes('faculty')) {
+      switchTab('faculty', false);
+    } else {
+      switchTab('rooms', false);
+    }
+  }
+
+  window.addEventListener('hashchange', handleInitialHash);
+
+  // Common helpers
   function getBuilding(id) {
-    return buildings.find((building) => building.id === id);
+    return buildings && buildings.find((building) => building.id === id);
   }
 
   function getFloor(building, id) {
@@ -58,7 +142,11 @@ document.addEventListener('DOMContentLoaded', () => {
     return `Room ${roomNumber}`;
   }
 
+  /* -------------------------------------------------------------
+   * Room Assignment & Floorplan preview logic
+   * ------------------------------------------------------------- */
   function renderFloorPlan() {
+    if (!floorPlanOverlayLayer || !floorPlanStage || !floorPlanEmpty || !floorPlanLabel) return;
     const building = getBuilding(buildingSelect.value);
     const floor = getFloor(building, floorSelect.value);
     floorPlanOverlayLayer.replaceChildren();
@@ -135,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
       records = await window.RoomQApi.request('/api/schedules?kind=reservation');
       renderRecords();
     } catch (error) {
-      feedback.textContent = `Reservations could not be loaded: ${error.message}`;
+      if (feedback) feedback.textContent = `Reservations could not be loaded: ${error.message}`;
     }
   }
 
@@ -174,6 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderRecords() {
+    if (!list || !count) return;
     list.replaceChildren();
     count.textContent = String(records.length);
     if (!records.length) {
@@ -214,10 +303,10 @@ document.addEventListener('DOMContentLoaded', () => {
         removeButton.disabled = true;
         try {
           await window.RoomQApi.request(`/api/schedules/${record.id}`, { method: 'DELETE' });
-          feedback.textContent = 'Removed the room reservation.';
+          if (feedback) feedback.textContent = 'Removed the room reservation.';
           await loadRecords();
         } catch (error) {
-          feedback.textContent = error.message;
+          if (feedback) feedback.textContent = error.message;
           removeButton.disabled = !authenticated;
         }
       });
@@ -230,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function saveAssignment(event) {
     event.preventDefault();
     if (!authenticated) {
-      feedback.textContent = 'Sign in as an administrator before saving reservations.';
+      if (feedback) feedback.textContent = 'Sign in as an administrator before saving reservations.';
       return;
     }
 
@@ -241,7 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
       : -1;
     const region = floor && floor.regions[regionIndex];
     if (!building || !floor || !region) {
-      feedback.textContent = 'Select a building, floor, and room before saving.';
+      if (feedback) feedback.textContent = 'Select a building, floor, and room before saving.';
       return;
     }
 
@@ -249,16 +338,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const startTime = startInput.value;
     const endTime = endInput.value;
     if (!date || !startTime || !endTime) {
-      feedback.textContent = 'Enter a date and choose both start and end times.';
+      if (feedback) feedback.textContent = 'Enter a date and choose both start and end times.';
       return;
     }
     if (startTime >= endTime) {
-      feedback.textContent = 'The end time must be later than the start time.';
+      if (feedback) feedback.textContent = 'The end time must be later than the start time.';
       return;
     }
 
     const roomLabel = getRoomLabel(floor, regionIndex, region);
-    submitButton.disabled = true;
+    if (submitButton) submitButton.disabled = true;
     try {
       await window.RoomQApi.request('/api/schedules', {
         method: 'POST',
@@ -271,7 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
           endTime
         })
       });
-      feedback.textContent = `Saved ${roomLabel} for ${date}, ${window.RoomQTime.format(startTime)}–${window.RoomQTime.format(endTime)}.`;
+      if (feedback) feedback.textContent = `Saved ${roomLabel} for ${date}, ${window.RoomQTime.format(startTime)}–${window.RoomQTime.format(endTime)}.`;
       await loadRecords();
       form.reset();
       dateInput.value = localDate;
@@ -280,33 +369,296 @@ document.addEventListener('DOMContentLoaded', () => {
       endTimePicker.setValue('');
     } catch (error) {
       const overlap = error.conflict && error.conflict.overlapPeriod;
-      feedback.textContent = overlap
-        ? `Room conflict from ${window.RoomQTime.format(overlap.startTime)} to ${window.RoomQTime.format(overlap.endTime)}. No reservation was saved.`
-        : error.message;
+      if (feedback) {
+        feedback.textContent = overlap
+          ? `Room conflict from ${window.RoomQTime.format(overlap.startTime)} to ${window.RoomQTime.format(overlap.endTime)}. No reservation was saved.`
+          : error.message;
+      }
     } finally {
-      submitButton.disabled = !authenticated;
+      if (submitButton) submitButton.disabled = !authenticated;
     }
   }
 
+  /* -------------------------------------------------------------
+   * Faculty Assignment logic
+   * ------------------------------------------------------------- */
+  function updateFacultyFloors() {
+    if (!facultyBuildingSelect || !facultyFloorSelect || !facultyClassroomSelect) return;
+    const building = getBuilding(facultyBuildingSelect.value);
+    facultyFloorSelect.replaceChildren(new Option('Select a floor', ''));
+    facultyClassroomSelect.replaceChildren(new Option('Unassigned class', ''));
+    facultyFloorSelect.disabled = !building || !building.floors.length;
+    facultyClassroomSelect.disabled = true;
+
+    if (!building) return;
+
+    building.floors.forEach((floor) => {
+      facultyFloorSelect.append(new Option(floor.label, floor.id));
+    });
+  }
+
+  function updateFacultyRooms() {
+    if (!facultyBuildingSelect || !facultyFloorSelect || !facultyClassroomSelect) return;
+    const building = getBuilding(facultyBuildingSelect.value);
+    const floor = getFloor(building, facultyFloorSelect.value);
+    facultyClassroomSelect.replaceChildren(new Option('Unassigned class', ''));
+    facultyClassroomSelect.disabled = !floor;
+    if (!floor) return;
+
+    floor.regions.forEach((region, index) => {
+      const roomNumber = getRoomNumber(floor, index, region);
+      const label = roomNumber === null
+        ? region.name || 'Named room'
+        : `Room ${roomNumber}${region.name ? ` · ${region.name}` : ''}`;
+      facultyClassroomSelect.append(new Option(label, `${building.id}-${floor.id}-${region.id}`));
+    });
+  }
+
+  function updateFacultyRecurrenceFields() {
+    if (!facultyRecurrenceSelect || !facultyWeekdaysField || !facultyDateField) return;
+    const isWeekly = facultyRecurrenceSelect.value === 'weekly';
+    facultyWeekdaysField.hidden = !isWeekly;
+    facultyDateField.hidden = isWeekly;
+    if (facultyDateInput) facultyDateInput.required = !isWeekly;
+  }
+
+  async function loadFacultyAssignments() {
+    try {
+      const all = await window.RoomQApi.request('/api/schedules?kind=class');
+      facultyRecords = Array.isArray(all) ? all : [];
+      renderFacultyAssignments();
+    } catch (error) {
+      if (facultyFeedback) facultyFeedback.textContent = `Faculty assignments could not be loaded: ${error.message}`;
+    }
+  }
+
+  const dayAbbreviations = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  function renderFacultyAssignments() {
+    if (!facultyList || !facultyCount) return;
+    facultyList.replaceChildren();
+
+    const searchTerm = facultyFilterInput ? facultyFilterInput.value.trim().toLowerCase() : '';
+    const filtered = facultyRecords.filter((rec) => {
+      if (!searchTerm) return true;
+      const room = rec.classroom;
+      const roomText = room ? `${room.buildingName} ${room.floorLabel} ${room.roomNumber} ${room.name}` : 'Unassigned';
+      return [
+        rec.instructor,
+        rec.course,
+        rec.section,
+        roomText
+      ].some((v) => String(v || '').toLowerCase().includes(searchTerm));
+    });
+
+    facultyCount.textContent = String(filtered.length);
+
+    if (!filtered.length) {
+      const empty = document.createElement('p');
+      empty.className = 'assignment-empty';
+      empty.textContent = facultyRecords.length
+        ? 'No faculty assignments match your search filter.'
+        : 'No faculty assignments have been recorded yet.';
+      facultyList.append(empty);
+      return;
+    }
+
+    const sorted = [...filtered].sort((a, b) =>
+      a.instructor.localeCompare(b.instructor) || a.course.localeCompare(b.course)
+    );
+
+    sorted.forEach((item) => {
+      const card = document.createElement('article');
+      card.className = 'assignment-record';
+
+      const copy = document.createElement('div');
+      copy.className = 'assignment-record-copy';
+
+      const headerLine = document.createElement('div');
+      headerLine.className = 'd-flex align-items-center gap-2 mb-1';
+
+      const instructorEl = document.createElement('strong');
+      instructorEl.textContent = item.instructor;
+
+      const badge = document.createElement('span');
+      badge.className = 'faculty-card-badge';
+      badge.innerHTML = `<i class="bi bi-person-fill"></i> ${item.section}`;
+
+      headerLine.append(instructorEl, badge);
+
+      const courseLine = document.createElement('div');
+      courseLine.className = 'text-dark fw-medium small mb-1';
+      courseLine.textContent = item.course;
+
+      const details = document.createElement('span');
+      let scheduleText = '';
+      if (item.recurrence === 'weekly') {
+        const days = Array.isArray(item.daysOfWeek)
+          ? item.daysOfWeek.map((d) => dayAbbreviations[d] || d).join(', ')
+          : 'Weekly';
+        scheduleText = `${days} · ${window.RoomQTime.format(item.startTime)}–${window.RoomQTime.format(item.endTime)}`;
+      } else {
+        scheduleText = `${item.date || 'Single day'} · ${window.RoomQTime.format(item.startTime)}–${window.RoomQTime.format(item.endTime)}`;
+      }
+
+      const room = item.classroom;
+      const roomLabel = room
+        ? `${room.buildingName} · ${room.floorLabel} · ${room.roomNumber === null ? room.name : `Room ${room.roomNumber}`}`
+        : 'Unassigned classroom';
+
+      details.textContent = `${scheduleText} · ${roomLabel}`;
+
+      copy.append(headerLine, courseLine, details);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'room-use-remove';
+      removeBtn.textContent = 'Remove';
+      removeBtn.disabled = !authenticated;
+      removeBtn.setAttribute('aria-label', `Remove assignment for ${item.instructor}`);
+      removeBtn.addEventListener('click', async () => {
+        if (!window.confirm(`Remove assignment of ${item.instructor} for ${item.course} (${item.section})?`)) {
+          return;
+        }
+        removeBtn.disabled = true;
+        try {
+          await window.RoomQApi.request(`/api/schedules/${item.id}`, { method: 'DELETE' });
+          if (facultyFeedback) facultyFeedback.textContent = `Removed assignment for ${item.instructor}.`;
+          await loadFacultyAssignments();
+        } catch (error) {
+          if (facultyFeedback) facultyFeedback.textContent = error.message;
+          removeBtn.disabled = !authenticated;
+        }
+      });
+
+      card.append(copy, removeBtn);
+      facultyList.append(card);
+    });
+  }
+
+  async function saveFacultyAssignment(event) {
+    event.preventDefault();
+    if (!authenticated) {
+      if (facultyFeedback) facultyFeedback.textContent = 'Sign in as an administrator before saving faculty assignments.';
+      return;
+    }
+
+    const instructor = facultyInstructorInput.value.trim();
+    const course = facultyCourseInput.value.trim();
+    const section = facultySectionInput.value.trim();
+    const recurrence = facultyRecurrenceSelect.value;
+    const startTime = facultyStartInput.value;
+    const endTime = facultyEndInput.value;
+    const classroomId = facultyClassroomSelect.value || null;
+
+    if (!instructor || !course || !section || !startTime || !endTime) {
+      if (facultyFeedback) facultyFeedback.textContent = 'Please fill out all required instructor, course, section, and time fields.';
+      return;
+    }
+
+    if (startTime >= endTime) {
+      if (facultyFeedback) facultyFeedback.textContent = 'The end time must be later than the start time.';
+      return;
+    }
+
+    let payload = {
+      kind: 'class',
+      instructor,
+      course,
+      section,
+      recurrence,
+      startTime,
+      endTime,
+      classroomId: classroomId || null
+    };
+
+    if (recurrence === 'weekly') {
+      const checkedDays = Array.from(facultyForm.querySelectorAll('input[name="facultyDay"]:checked'))
+        .map((cb) => Number(cb.value));
+      if (!checkedDays.length) {
+        if (facultyFeedback) facultyFeedback.textContent = 'Please select at least one recurring weekday.';
+        return;
+      }
+      payload.daysOfWeek = checkedDays;
+      payload.startDate = localDate;
+    } else {
+      const date = facultyDateInput.value;
+      if (!date) {
+        if (facultyFeedback) facultyFeedback.textContent = 'Please select a date for the one-time assignment.';
+        return;
+      }
+      payload.date = date;
+    }
+
+    if (facultySubmitBtn) facultySubmitBtn.disabled = true;
+    try {
+      await window.RoomQApi.request('/api/schedules', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      if (facultyFeedback) facultyFeedback.textContent = `Assigned ${instructor} to ${course} (${section}).`;
+      await loadFacultyAssignments();
+      facultyForm.reset();
+      if (facultyDateInput) facultyDateInput.value = localDate;
+      facultyRecurrenceSelect.value = 'weekly';
+      updateFacultyRecurrenceFields();
+      updateFacultyFloors();
+      facultyStartPicker.setValue('');
+      facultyEndPicker.setValue('');
+    } catch (error) {
+      const conflict = error.conflict;
+      if (conflict && conflict.overlapPeriod) {
+        const overlap = conflict.overlapPeriod;
+        const existing = conflict.existingSchedule;
+        const msg = existing
+          ? `Conflict with ${existing.course || 'Schedule'} (${existing.section || ''}) by ${existing.instructor || 'another user'} from ${window.RoomQTime.format(overlap.startTime)} to ${window.RoomQTime.format(overlap.endTime)}.`
+          : `Schedule conflict from ${window.RoomQTime.format(overlap.startTime)} to ${window.RoomQTime.format(overlap.endTime)}.`;
+        if (facultyFeedback) facultyFeedback.textContent = msg;
+      } else {
+        if (facultyFeedback) facultyFeedback.textContent = error.message;
+      }
+    } finally {
+      if (facultySubmitBtn) facultySubmitBtn.disabled = !authenticated;
+    }
+  }
+
+  // Initialization
   if (!Array.isArray(buildings) || !buildings.length) {
-    feedback.textContent = 'Classroom layout data is unavailable; assignments cannot be created.';
-    submitButton.disabled = true;
+    if (feedback) feedback.textContent = 'Classroom layout data is unavailable; assignments cannot be created.';
+    if (submitButton) submitButton.disabled = true;
+    if (facultySubmitBtn) facultySubmitBtn.disabled = true;
     return;
   }
 
   buildings.forEach((building) => {
-    buildingSelect.append(new Option(building.name, building.id));
+    if (buildingSelect) buildingSelect.append(new Option(building.name, building.id));
+    if (facultyBuildingSelect) facultyBuildingSelect.append(new Option(building.name, building.id));
   });
-  buildingSelect.addEventListener('change', updateFloors);
-  floorSelect.addEventListener('change', updateRooms);
-  roomSelect.addEventListener('change', renderFloorPlan);
-  form.addEventListener('submit', saveAssignment);
+
+  if (buildingSelect) buildingSelect.addEventListener('change', updateFloors);
+  if (floorSelect) floorSelect.addEventListener('change', updateRooms);
+  if (roomSelect) roomSelect.addEventListener('change', renderFloorPlan);
+  if (form) form.addEventListener('submit', saveAssignment);
   window.addEventListener('resize', renderFloorPlan);
 
+  // Faculty listeners
+  if (facultyBuildingSelect) facultyBuildingSelect.addEventListener('change', updateFacultyFloors);
+  if (facultyFloorSelect) facultyFloorSelect.addEventListener('change', updateFacultyRooms);
+  if (facultyRecurrenceSelect) facultyRecurrenceSelect.addEventListener('change', updateFacultyRecurrenceFields);
+  if (facultyForm) facultyForm.addEventListener('submit', saveFacultyAssignment);
+  if (facultyFilterInput) facultyFilterInput.addEventListener('input', renderFacultyAssignments);
+
+  // Mount Admin Panel
   window.RoomQApi.mountAdminPanel(authPanel, (user) => {
     authenticated = Boolean(user && user.role === 'admin');
-    submitButton.disabled = !authenticated;
+    if (submitButton) submitButton.disabled = !authenticated;
+    if (facultySubmitBtn) facultySubmitBtn.disabled = !authenticated;
     renderRecords();
+    renderFacultyAssignments();
   });
+
+  // Initial loads
+  handleInitialHash();
   loadRecords();
+  loadFacultyAssignments();
 });
