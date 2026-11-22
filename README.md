@@ -22,7 +22,7 @@ $env:ROOMQ_ADMIN_PASSWORD = "choose-a-private-password"
 npm start
 ```
 
-Open `http://localhost:3000`. Sign in as an administrator with the configured credentials, or create a user account from the sign-in page. User accounts can reserve classrooms; schedule management remains administrator-only. The default administrator username is `admin`; set `ROOMQ_ADMIN_USERNAME` to change it. The SQLite database is created as `roomq.sqlite` and is intentionally excluded from source control.
+Open `http://localhost:3000`. The shared sign-in page accepts either an administrator or user account and routes each to the appropriate page. New accounts created there are user accounts and can reserve classrooms; schedule management remains administrator-only. The default administrator username is `admin`; set `ROOMQ_ADMIN_USERNAME` to change it. The SQLite database is created as `roomq.sqlite` and is intentionally excluded from source control.
 
 ## Additional administrator accounts
 
@@ -33,7 +33,7 @@ $env:ROOMQ_ADMIN_SIGNUP_KEY = "replace-with-a-private-key-of-at-least-16-charact
 npm start
 ```
 
-Keep the key private and do not commit it. On the sign-in page, choose **Admin**, select **Create one**, and enter the setup key with the new account details. The new administrator is signed in and redirected to the dashboard. The initial administrator is still provisioned with `ROOMQ_ADMIN_USERNAME` and `ROOMQ_ADMIN_PASSWORD` when the database is first created.
+Keep the key private and do not commit it. Additional administrator accounts can be created through the protected `/api/register-admin` endpoint using the setup key. The initial administrator is provisioned with `ROOMQ_ADMIN_USERNAME` and `ROOMQ_ADMIN_PASSWORD` when the database is first created.
 
 The server binds to `127.0.0.1` by default. Set `HOST` and `PORT` explicitly only when deploying behind an HTTPS reverse proxy or when access from another machine is required. Set `ROOMQ_DB_PATH` to store the SQLite database at a custom path. Set `NODE_ENV=production` to enable the secure session-cookie attribute.
 
