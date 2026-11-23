@@ -72,10 +72,16 @@ CREATE TABLE IF NOT EXISTS `users` (
   `username` VARCHAR(32) NOT NULL,
   `password_salt` VARCHAR(64) NOT NULL,
   `password_hash` VARCHAR(128) NOT NULL,
-  `role` ENUM('admin', 'user') NOT NULL DEFAULT 'user',
+  `role` ENUM('admin', 'staff', 'user') NOT NULL DEFAULT 'user',
+  `full_name` VARCHAR(120) NULL DEFAULT NULL,
+  `email` VARCHAR(190) NULL DEFAULT NULL,
+  `is_active` TINYINT(1) NOT NULL DEFAULT 1,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_users_username` (`username`)
+  UNIQUE KEY `uq_users_username` (`username`),
+  UNIQUE KEY `uq_users_email` (`email`),
+  KEY `idx_users_role_active` (`role`, `is_active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ----------------------------------------------------------------------------
@@ -110,14 +116,19 @@ CREATE TABLE IF NOT EXISTS `schedules` (
   `end_date` DATE NULL DEFAULT NULL,
   `start_time` CHAR(5) NOT NULL,
   `end_time` CHAR(5) NOT NULL,
+  `created_by_user_id` INT UNSIGNED NULL DEFAULT NULL,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_schedules_classroom` (`classroom_id`),
   KEY `idx_schedules_dates` (`date`, `start_date`, `end_date`),
+  KEY `idx_schedules_created_by` (`created_by_user_id`),
   CONSTRAINT `fk_schedules_classroom`
     FOREIGN KEY (`classroom_id`) REFERENCES `classrooms` (`id`)
     ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_schedules_created_by`
+    FOREIGN KEY (`created_by_user_id`) REFERENCES `users` (`id`)
+    ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `chk_schedules_time_order` CHECK (`start_time` < `end_time`),
   CONSTRAINT `chk_schedules_recurrence` CHECK (
     (`recurrence` = 'once' AND `date` IS NOT NULL AND `start_date` IS NULL AND `end_date` IS NULL)
