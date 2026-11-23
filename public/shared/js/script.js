@@ -21,14 +21,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Check URL parameters for access alerts
   const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('denied') === 'admin') {
+  const deniedArea = urlParams.get('denied');
+  if (deniedArea === 'admin' || deniedArea === 'staff') {
     const alertDiv = document.createElement('div');
     alertDiv.className = 'alert alert-warning alert-dismissible fade show m-3';
     alertDiv.setAttribute('role', 'alert');
+    const message = deniedArea === 'admin'
+      ? 'Administrator privileges are required to access management functions.'
+      : 'A staff or administrator account is required to open that page.';
     alertDiv.innerHTML = `
-      <strong>Access Restricted:</strong> Administrator privileges are required to access management functions.
+      <strong>Access Restricted:</strong> <span></span>
       <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     `;
+    alertDiv.querySelector('span').textContent = message;
     const mainContent = document.querySelector('.main-content');
     if (mainContent) {
       mainContent.prepend(alertDiv);
@@ -54,12 +59,76 @@ async function syncSessionAndNavigation() {
   }
 
   const isAdminPage = window.location.pathname.includes('/admin/');
+  const isStaffPage = window.location.pathname.includes('/staff/');
   const isUserPage = window.location.pathname.includes('/user/');
+  const hasPermission = (permission) =>
+    Boolean(currentUser && Array.isArray(currentUser.permissions) &&
+      currentUser.permissions.includes(permission));
+  const roleLabel = (role) => ({ admin: 'Administrator', staff: 'Staff' }[role] || 'Student / User');
+  const displayName = (user) => user.fullName || user.username;
 
-  // Access control guard: Non-admin users cannot access admin pages
-  if (isAdminPage && currentUser && currentUser.role !== 'admin') {
-    window.location.replace('/user/dashboard.html?denied=admin');
+  // Access control guard (the server enforces the same rule; this covers pages
+  // restored from the browser's back/forward cache after signing out).
+  if ((isAdminPage || isStaffPage) && !currentUser) {
+    const back = window.location.pathname + window.location.search;
+    window.location.replace(`/user/login.html?returnTo=${encodeURIComponent(back)}`);
     return;
+  }
+  if (isAdminPage && !hasPermission('portal.admin')) {
+    window.location.replace(currentUser.role === 'staff'
+      ? '/staff/dashboard.html?denied=admin'
+      : '/user/dashboard.html?denied=admin');
+    return;
+  }
+  if (isStaffPage && !hasPermission('portal.staff')) {
+    window.location.replace('/user/dashboard.html?denied=staff');
+    return;
+  }
+
+  // Staff share the admin page layouts. Show them their own portal name and
+  // drop links to modules their role cannot open (the server refuses those
+  // requests regardless).
+  if (currentUser && (isAdminPage || isStaffPage)) {
+    const portalName = currentUser.role === 'staff' ? 'Staff Portal' : 'Admin Portal';
+    document.querySelectorAll('.brand-sub-badge, .workspace-breadcrumb a:first-child').forEach((element) => {
+      if (element.textContent.trim() === 'Admin Portal') element.textContent = portalName;
+    });
+    const modulePermissions = {
+      'insights.html': 'portal.admin',
+      'assignments.html': 'portal.admin',
+      'conflicts.html': 'conflicts.view',
+      'reports.html': 'reports.view',
+      'activity-logs.html': 'activity.view',
+      'users.html': 'users.manage'
+    };
+    document.querySelectorAll(
+      '.sidebar-nav a.nav-item, .dropdown-menu a.dropdown-item, .workspace-footer-links a'
+    ).forEach((link) => {
+      const target = (link.getAttribute('href') || '').split(/[?#]/)[0].split('/').pop();
+      if (modulePermissions[target] && !hasPermission(modulePermissions[target])) {
+        link.remove();
+      }
+    });
+    if (currentUser.role === 'staff') {
+      document.querySelectorAll('.dropdown-menu a.dropdown-item').forEach((link) => {
+        if (link.lastChild && link.lastChild.textContent.trim() === 'Admin Dashboard') {
+          link.lastChild.textContent = 'Dashboard';
+        }
+      });
+    }
+    document.querySelectorAll('.sidebar-nav .nav-group').forEach((group) => {
+      if (!group.querySelector('a.nav-item')) group.remove();
+    });
+    // Every management account can reach its own account page from the profile menu.
+    const profileMenu = document.querySelector('.workspace-profile-trigger + .dropdown-menu');
+    if (profileMenu && !profileMenu.querySelector('[data-account-link]')) {
+      const accountLink = document.createElement('a');
+      accountLink.className = 'dropdown-item';
+      accountLink.href = '/staff/account.html';
+      accountLink.dataset.accountLink = 'true';
+      accountLink.innerHTML = '<i class="bi bi-person-gear me-2"></i>My account';
+      profileMenu.prepend(accountLink);
+    }
   }
 
   // Update profile boxes in sidebar
@@ -72,9 +141,9 @@ async function syncSessionAndNavigation() {
     if (currentUser) {
       const initials = (currentUser.username || 'U').slice(0, 2).toUpperCase();
       if (avatar) avatar.textContent = initials;
-      if (nameEl) nameEl.textContent = currentUser.username;
+      if (nameEl) nameEl.textContent = displayName(currentUser);
       if (roleEl) {
-        roleEl.textContent = currentUser.role === 'admin' ? 'Administrator' : 'Student / User';
+        roleEl.textContent = roleLabel(currentUser.role);
       }
     } else {
       if (avatar) avatar.textContent = isAdminPage ? 'AD' : 'GU';
@@ -91,8 +160,8 @@ async function syncSessionAndNavigation() {
     const roleEl = pill.querySelector('#topbarRole, .workspace-profile-meta span');
     if (currentUser) {
       if (avatar) avatar.textContent = (currentUser.username || 'U').slice(0, 2).toUpperCase();
-      if (nameEl) nameEl.textContent = currentUser.username;
-      if (roleEl) roleEl.textContent = currentUser.role === 'admin' ? 'Administrator' : 'Student / User';
+      if (nameEl) nameEl.textContent = displayName(currentUser);
+      if (roleEl) roleEl.textContent = roleLabel(currentUser.role);
     } else {
       if (avatar) avatar.textContent = isAdminPage ? 'AD' : 'GU';
       if (nameEl) nameEl.textContent = isAdminPage ? 'Admin' : 'Guest';
@@ -167,14 +236,15 @@ async function syncSessionAndNavigation() {
 
   const headerPortalSwitch = document.getElementById('headerPortalSwitch');
   if (headerPortalSwitch) {
-    if (currentUser && currentUser.role === 'admin') {
+    if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'staff')) {
+      const ownPortal = currentUser.role === 'admin' ? 'admin' : 'staff';
       headerPortalSwitch.hidden = false;
-      if (isAdminPage) {
+      if (isAdminPage || isStaffPage) {
         headerPortalSwitch.innerHTML = '<i class="bi bi-eye me-2"></i>Switch to User Portal';
-        headerPortalSwitch.href = '../user/dashboard.html';
+        headerPortalSwitch.href = '/user/dashboard.html';
       } else {
-        headerPortalSwitch.innerHTML = '<i class="bi bi-shield-lock me-2"></i>Admin Portal';
-        headerPortalSwitch.href = '../admin/dashboard.html';
+        headerPortalSwitch.innerHTML = `<i class="bi bi-shield-lock me-2"></i>${ownPortal === 'admin' ? 'Admin' : 'Staff'} Portal`;
+        headerPortalSwitch.href = `/${ownPortal}/dashboard.html`;
       }
     } else {
       headerPortalSwitch.hidden = true;
@@ -200,11 +270,24 @@ async function syncSessionAndNavigation() {
   // User-specific elements:
   const adminPortalNavGroup = document.getElementById('adminPortalNavGroup');
   if (adminPortalNavGroup) {
-    adminPortalNavGroup.hidden = !(currentUser && currentUser.role === 'admin');
+    const managesPortal = Boolean(currentUser && (currentUser.role === 'admin' || currentUser.role === 'staff'));
+    adminPortalNavGroup.hidden = !managesPortal;
+    if (managesPortal && currentUser.role === 'staff') {
+      const label = adminPortalNavGroup.querySelector('.nav-section-label');
+      const link = adminPortalNavGroup.querySelector('a.nav-item');
+      if (label) label.textContent = 'Staff Portal';
+      if (link) {
+        link.href = '/staff/dashboard.html';
+        link.lastChild.textContent = 'Staff Dashboard';
+      }
+    }
   }
 
   const viewFullScheduleLink = document.getElementById('viewFullScheduleLink');
   if (viewFullScheduleLink) {
-    viewFullScheduleLink.hidden = !(currentUser && currentUser.role === 'admin');
+    viewFullScheduleLink.hidden = !(currentUser && (currentUser.role === 'admin' || currentUser.role === 'staff'));
+    if (currentUser && currentUser.role === 'staff') {
+      viewFullScheduleLink.href = '/staff/schedules.html';
+    }
   }
 }

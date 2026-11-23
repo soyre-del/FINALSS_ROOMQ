@@ -294,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
           : `Room ${room.roomNumber}${room.name ? ` · ${room.name}` : ''}`
         : 'Unassigned room';
       const description = document.createElement('span');
-      description.textContent = `${room ? `${room.buildingName} · ${room.floorLabel} · ` : ''}${record.date} · ${window.RoomQTime.format(record.startTime)}–${window.RoomQTime.format(record.endTime)}`;
+      description.textContent = `${room ? `${room.buildingName} · ${room.floorLabel} · ` : ''}${record.date} · ${window.RoomQTime.format(record.startTime)}–${window.RoomQTime.format(record.endTime)}${record.createdByUsername ? ` · Reserved by ${record.createdByUsername}` : ''}`;
       copy.append(title, description);
 
       const removeButton = document.createElement('button');
@@ -486,7 +486,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const badge = document.createElement('span');
       badge.className = 'faculty-card-badge';
-      badge.innerHTML = `<i class="bi bi-person-fill"></i> ${item.section}`;
+      const badgeIcon = document.createElement('i');
+      badgeIcon.className = 'bi bi-person-fill';
+      badge.append(badgeIcon, ` ${item.section}`);
 
       headerLine.append(instructorEl, badge);
 

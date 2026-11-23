@@ -133,5 +133,11 @@
     };
   }
 
-  window.RoomQApi = { ApiError, mountAdminPanel, request };
+  // Whether the signed-in user holds a permission. For showing or hiding
+  // controls only; the server enforces every permission itself.
+  function can(user, permission) {
+    return Boolean(user && Array.isArray(user.permissions) && user.permissions.includes(permission));
+  }
+
+  window.RoomQApi = { ApiError, can, mountAdminPanel, request };
 })();

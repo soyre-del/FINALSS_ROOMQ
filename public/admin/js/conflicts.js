@@ -189,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('refreshConflicts').addEventListener('click', loadConflicts);
   document.getElementById('closeConflictDetails').addEventListener('click', () => dialog.close());
   window.RoomQApi.mountAdminPanel(document.getElementById('adminSessionPanel'), (user) => {
-    authenticated = Boolean(user && user.role === 'admin');
+    authenticated = window.RoomQApi.can(user, 'conflicts.view');
     loadConflicts();
   });
   updateRooms();

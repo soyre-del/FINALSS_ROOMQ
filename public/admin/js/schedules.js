@@ -40,7 +40,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let schedules = [];
   let rooms = [];
   let view = 'week';
-  let authenticated = false;
+  let authenticated = false; // may add and edit schedules (administrators and staff)
+  let canDelete = false; // may delete schedules (administrators only)
 
   const startTimePicker = window.RoomQTime.attach(
     document.getElementById('scheduleStartPicker'),
@@ -329,7 +330,10 @@ document.addEventListener('DOMContentLoaded', () => {
       remove.type = 'button';
       remove.className = 'table-action-button is-danger';
       remove.textContent = 'Delete';
-      remove.disabled = !authenticated;
+      remove.disabled = !canDelete;
+      if (!canDelete) {
+        remove.title = 'Only administrators can delete schedules.';
+      }
       remove.addEventListener('click', () => deleteSchedule(schedule));
       actions.append(edit, remove);
       row.append(actions);
@@ -404,19 +408,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     instructorLabel.textContent = facultyAssignmentMode ? 'Faculty member' : 'Instructor';
 
+    // The sidebar may not include a separate faculty-assignment entry, so
+    // either nav item can be absent.
     if (facultyAssignmentMode) {
-      scheduleNavItem.classList.remove('active');
-      scheduleNavItem.removeAttribute('aria-current');
-      facultyAssignmentNavItem.classList.add('active');
-      facultyAssignmentNavItem.setAttribute('aria-current', 'page');
+      scheduleNavItem?.classList.remove('active');
+      scheduleNavItem?.removeAttribute('aria-current');
+      facultyAssignmentNavItem?.classList.add('active');
+      facultyAssignmentNavItem?.setAttribute('aria-current', 'page');
       requestAnimationFrame(() => {
-        document.getElementById('facultyAssignment').scrollIntoView({ block: 'start' });
+        document.getElementById('facultyAssignment')?.scrollIntoView({ block: 'start' });
       });
     } else {
-      scheduleNavItem.classList.add('active');
-      scheduleNavItem.setAttribute('aria-current', 'page');
-      facultyAssignmentNavItem.classList.remove('active');
-      facultyAssignmentNavItem.removeAttribute('aria-current');
+      scheduleNavItem?.classList.add('active');
+      scheduleNavItem?.setAttribute('aria-current', 'page');
+      facultyAssignmentNavItem?.classList.remove('active');
+      facultyAssignmentNavItem?.removeAttribute('aria-current');
     }
   }
 
@@ -529,7 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function deleteSchedule(schedule) {
-    if (!authenticated || !window.confirm(`Delete ${schedule.course} · ${schedule.section}?`)) {
+    if (!canDelete || !window.confirm(`Delete ${schedule.course} · ${schedule.section}?`)) {
       return;
     }
     try {
@@ -541,7 +547,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function setAuthenticated(user) {
-    authenticated = Boolean(user && user.role === 'admin');
+    authenticated = window.RoomQApi.can(user, 'schedules.create');
+    canDelete = window.RoomQApi.can(user, 'schedules.delete');
     formControls.forEach((control) => {
       control.disabled = !authenticated;
     });
