@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Staff Dashboard | RoomQ</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="../shared/css/roomq.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar offcanvas-lg offcanvas-start" id="appSidebar" tabindex="-1" aria-label="Sidebar">
+        <div class="sidebar-inner">
+          <div class="brand-block">
+            <a class="brand-link" href="dashboard.html" aria-label="RoomQ Staff Portal">
+              <img src="../assets/roomq-logo.webp" alt="RoomQ Logo" class="brand-logo-img" />
+              <span class="brand-sub-badge">Staff Portal</span>
+            </a>
+            <button type="button" class="btn-close btn-close-white d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#appSidebar" aria-label="Close menu"></button>
+          </div>
+          <nav class="sidebar-nav" aria-label="Main navigation">
+            <div class="nav-group">
+              <p class="nav-section-label">Overview</p>
+              <a href="dashboard.html" class="nav-item active" aria-current="page"><span class="nav-icon"><i class="bi bi-grid-1x2"></i></span>Dashboard</a>
+            </div>
+            <div class="nav-group">
+              <p class="nav-section-label">Spaces</p>
+              <a href="classrooms.html" class="nav-item"><span class="nav-icon"><i class="bi bi-door-open"></i></span>Classrooms</a>
+            </div>
+            <div class="nav-group">
+              <p class="nav-section-label">Scheduling</p>
+              <a href="schedules.html" class="nav-item"><span class="nav-icon"><i class="bi bi-calendar3"></i></span>Schedules</a>
+              <a href="conflicts.html" class="nav-item"><span class="nav-icon"><i class="bi bi-exclamation-triangle"></i></span>Conflicts</a>
+            </div>
+            <div class="nav-group">
+              <p class="nav-section-label">Account</p>
+              <a href="account.html" class="nav-item"><span class="nav-icon"><i class="bi bi-person-gear"></i></span>My account</a>
+            </div>
+          </nav>
+          <div class="profile-box" id="sidebarProfileBox">
+            <div class="mini-avatar" id="sidebarMiniAvatar">ST</div>
+            <div class="flex-grow-1 min-w-0">
+              <strong id="sidebarProfileName" class="text-truncate">Staff</strong>
+              <span id="sidebarProfileRole">Staff Portal</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="workspace-header">
+          <div class="workspace-header-left">
+            <button class="menu-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebar" aria-controls="appSidebar" aria-label="Open menu"><i class="bi bi-list"></i></button>
+            <div class="workspace-breadcrumb-wrap">
+              <nav class="workspace-breadcrumb" aria-label="Breadcrumb">
+                <a href="dashboard.html">Staff Portal</a>
+                <span class="workspace-breadcrumb-sep">/</span>
+                <span>Dashboard</span>
+                <span class="workspace-breadcrumb-sep d-none d-sm-inline">·</span>
+                <span class="d-none d-sm-inline" id="todayDate"></span>
+              </nav>
+              <span class="workspace-header-title">Staff Overview</span>
+            </div>
+          </div>
+
+          <div class="workspace-header-right">
+            <div class="dropdown">
+              <button class="workspace-icon-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications">
+                <i class="bi bi-bell"></i>
+                <span class="notif-dot" aria-hidden="true"></span>
+              </button>
+              <div class="dropdown-menu dropdown-menu-end workspace-dropdown-menu">
+                <p class="px-2 py-1 mb-1 small fw-bold text-dark">Staff Portal</p>
+                <div class="px-2 py-1 small text-muted">Today's classes and scheduling tasks at a glance.</div>
+              </div>
+            </div>
+
+            <div class="dropdown">
+              <button class="workspace-profile-trigger" type="button" id="topbarUserPill" data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="user-avatar" id="topbarAvatar">ST</span>
+                <span class="workspace-profile-meta d-none d-sm-flex">
+                  <strong id="topbarUsername">Staff</strong>
+                  <span id="topbarRole">Staff Portal</span>
+                </span>
+                <i class="bi bi-chevron-down small text-muted ms-1 d-none d-sm-inline"></i>
+              </button>
+              <div class="dropdown-menu dropdown-menu-end workspace-dropdown-menu">
+                <a class="dropdown-item" href="dashboard.html"><i class="bi bi-grid-1x2 me-2"></i>Dashboard</a>
+                <a class="dropdown-item" href="schedules.html"><i class="bi bi-calendar3 me-2"></i>Manage Schedules</a>
+                <a class="dropdown-item" href="../user/dashboard.html" id="headerPortalSwitch"><i class="bi bi-eye me-2"></i>Switch to User Portal</a>
+              </div>
+            </div>
+
+            <div class="header-auth-actions" id="headerAuthActions">
+              <a href="../user/login.html" class="btn-header-auth btn-header-login" id="headerLoginBtn" title="Sign in to RoomQ">
+                <i class="bi bi-box-arrow-in-right"></i>
+                <span>Sign In</span>
+              </a>
+              <button type="button" class="btn-header-auth btn-header-logout" id="headerLogoutBtn" title="Sign out of RoomQ" hidden>
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Sign Out</span>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div class="workspace-body">
+          <div class="workspace-action-bar">
+            <div>
+              <h1 class="workspace-page-title">Staff Dashboard</h1>
+              <p class="workspace-page-subtitle" id="staffGreeting">Today's classes, room status, and scheduling tasks.</p>
+            </div>
+            <div class="workspace-action-controls">
+              <a class="btn btn-primary btn-sm" href="schedules.html"><i class="bi bi-calendar-plus"></i> Add schedule</a>
+            </div>
+          </div>
+
+          <p id="staffError" class="assignment-feedback" role="alert"></p>
+
+          <section class="schedule-summary-grid" aria-label="Campus summary">
+            <article class="summary-card summary-primary"><div class="summary-icon"><i class="bi bi-door-open"></i></div><div><p>Classrooms</p><strong id="staffStatRooms">—</strong></div></article>
+            <article class="summary-card"><div class="summary-icon accent"><i class="bi bi-calendar-check"></i></div><div><p>Classes today</p><strong id="staffStatToday">—</strong></div></article>
+            <article class="summary-card"><div class="summary-icon navy"><i class="bi bi-inbox"></i></div><div><p>Unassigned classes</p><strong id="staffStatUnassigned">—</strong></div></article>
+            <article class="summary-card"><div class="summary-icon sky"><i class="bi bi-exclamation-triangle"></i></div><div><p>Schedule conflicts</p><strong id="staffStatConflicts">—</strong></div></article>
+          </section>
+
+          <section class="panel" aria-labelledby="staffTodayHeading">
+            <div class="schedule-section-heading"><div><p class="panel-kicker" id="staffTodayDate">Today</p><h2 id="staffTodayHeading">Today's classes</h2></div></div>
+            <div class="responsive-table-wrap">
+              <table class="table table-hover align-middle roomq-table">
+                <thead><tr><th>Time</th><th>Course</th><th>Section</th><th>Instructor</th><th>Classroom</th></tr></thead>
+                <tbody id="staffTodayBody"></tbody>
+              </table>
+            </div>
+            <p id="staffTodayEmpty" class="schedule-empty-message" hidden>No classes are scheduled for today.</p>
+          </section>
+
+          <section class="panel" aria-labelledby="staffActionsHeading">
+            <div class="schedule-section-heading"><div><p class="panel-kicker">Shortcuts</p><h2 id="staffActionsHeading">Your tools</h2></div></div>
+            <div class="schedule-form-actions">
+              <a class="btn btn-outline-primary" href="schedules.html"><i class="bi bi-calendar3"></i> Manage schedules</a>
+              <a class="btn btn-outline-primary" href="conflicts.html"><i class="bi bi-exclamation-triangle"></i> Review conflicts</a>
+              <a class="btn btn-outline-primary" href="classrooms.html"><i class="bi bi-door-open"></i> Classroom availability</a>
+              <a class="btn btn-outline-primary" href="account.html"><i class="bi bi-person-gear"></i> My account</a>
+            </div>
+          </section>
+        </div>
+
+        <footer class="workspace-footer">
+          <div>RoomQ Classroom Management System · © 2026 NORSU-MC 1</div>
+          <div class="workspace-footer-links">
+            <a href="../user/classrooms.html#guide">Booking Policy</a>
+            <a href="conflicts.html" class="system-status-link"><span class="status-dot-live" aria-hidden="true"></span> System Operational</a>
+          </div>
+        </footer>
+      </main>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../shared/js/script.js"></script>
+    <script src="../shared/js/roomq-time.js"></script>
+    <script src="../shared/js/roomq-api.js"></script>
+    <script src="js/staff-dashboard.js"></script>
+  </body>
+</html>

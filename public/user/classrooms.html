@@ -336,6 +336,21 @@
           <p class="schedule-empty-message" id="classroomsDirectoryEmpty">Loading classroom availability…</p>
         </section>
 
+        <!-- My Reservations (shown when signed in) -->
+        <section class="panel assignment-list-panel mt-4" id="myReservations" aria-labelledby="myReservationsHeading" hidden>
+          <div class="assignment-panel-heading">
+            <span class="assignment-panel-icon assignment-list-icon" aria-hidden="true"><i class="bi bi-bookmark-check"></i></span>
+            <div>
+              <p class="panel-kicker">Your bookings</p>
+              <h2 id="myReservationsHeading">My reservations</h2>
+            </div>
+            <span class="assignment-count" id="myReservationsCount">0</span>
+          </div>
+          <p class="assignment-list-description">Cancel a reservation you no longer need so others can use the room.</p>
+          <p class="assignment-list-description" id="myReservationsFeedback" role="status" aria-live="polite"></p>
+          <div id="myReservationsList" class="assignment-record-list" aria-live="polite"></div>
+        </section>
+
         <!-- Reservation Guide Section -->
         <section class="panel reservation-guide-panel mt-4" id="guide" aria-labelledby="reservationStepsHeading">
           <div class="panel-header-row mb-3">
@@ -474,5 +489,6 @@
     <script src="../shared/js/roomq-data.js"></script>
     <script src="../shared/js/roomq-api.js"></script>
     <script src="js/classroom-explorer.js"></script>
+    <script src="js/my-reservations.js"></script>
   </body>
 </html>
