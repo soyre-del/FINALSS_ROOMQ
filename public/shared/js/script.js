@@ -65,9 +65,9 @@ async function syncSessionAndNavigation() {
   // Update profile boxes in sidebar
   const profileBoxes = document.querySelectorAll('.profile-box, #sidebarProfileBox');
   profileBoxes.forEach((box) => {
-    const avatar = box.querySelector('.mini-avatar, #sidebarMiniAvatar');
-    const nameEl = box.querySelector('strong, #sidebarProfileName');
-    const roleEl = box.querySelector('span, #sidebarProfileRole');
+    const avatar = box.querySelector('#sidebarMiniAvatar, .mini-avatar');
+    const nameEl = box.querySelector('#sidebarProfileName, strong');
+    const roleEl = box.querySelector('#sidebarProfileRole, span:not(.mini-avatar)');
 
     if (currentUser) {
       const initials = (currentUser.username || 'U').slice(0, 2).toUpperCase();
@@ -86,9 +86,9 @@ async function syncSessionAndNavigation() {
   // Update topbar user pills if present
   const topbarUserPills = document.querySelectorAll('.user-pill, #topbarUserPill');
   topbarUserPills.forEach((pill) => {
-    const avatar = pill.querySelector('.user-avatar, #topbarAvatar');
-    const nameEl = pill.querySelector('strong, #topbarUsername');
-    const roleEl = pill.querySelector('span, #topbarRole');
+    const avatar = pill.querySelector('#topbarAvatar, .user-avatar');
+    const nameEl = pill.querySelector('#topbarUsername, strong');
+    const roleEl = pill.querySelector('#topbarRole, .workspace-profile-meta span');
     if (currentUser) {
       if (avatar) avatar.textContent = (currentUser.username || 'U').slice(0, 2).toUpperCase();
       if (nameEl) nameEl.textContent = currentUser.username;
@@ -100,62 +100,69 @@ async function syncSessionAndNavigation() {
     }
   });
 
-  // Update Account Nav Link (Sign in / Sign out)
-  const accountNavLinks = document.querySelectorAll('#sidebarAccountLink');
-  accountNavLinks.forEach((link) => {
-    const currentPath = window.location.pathname + window.location.search + window.location.hash;
-    const loginBase = isUserPage ? 'login.html' : '../user/login.html';
-    const loginUrl = `${loginBase}?returnTo=${encodeURIComponent(currentPath)}`;
+  const currentPath = window.location.pathname + window.location.search + window.location.hash;
+  const loginBase = isUserPage ? 'login.html' : '../user/login.html';
+  const loginUrl = `${loginBase}?returnTo=${encodeURIComponent(currentPath)}`;
 
-    if (currentUser) {
-      link.innerHTML = '<span class="nav-icon"><i class="bi bi-box-arrow-right"></i></span>Sign out';
-      link.href = '#';
-      link.addEventListener('click', async (event) => {
-        event.preventDefault();
-        try {
-          await fetch('/api/logout', {
-            method: 'POST',
-            body: '{}',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin'
-          });
-        } catch {
-          // ignore
-        }
-        window.location.assign('/user/login.html');
+  async function performSignOut(event) {
+    if (event) event.preventDefault();
+    try {
+      await fetch('/api/logout', {
+        method: 'POST',
+        body: '{}',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin'
       });
-    } else {
-      link.innerHTML = '<span class="nav-icon"><i class="bi bi-box-arrow-in-right"></i></span>Sign in';
-      link.href = loginUrl;
+    } catch {
+      // ignore network error and redirect to login
     }
-  });
+    window.location.assign('/user/login.html');
+  }
 
-  // Update Header Profile Dropdown Actions
+  // Ensure Header Sign In & Sign Out Buttons exist on every workspace header
+  const headerRight = document.querySelector('.workspace-header-right');
+  if (headerRight && !document.getElementById('headerAuthActions')) {
+    const authWrap = document.createElement('div');
+    authWrap.className = 'header-auth-actions';
+    authWrap.id = 'headerAuthActions';
+    authWrap.innerHTML = `
+      <a href="${loginUrl}" class="btn-header-auth btn-header-login" id="headerLoginBtn" title="Sign in to RoomQ">
+        <i class="bi bi-box-arrow-in-right"></i>
+        <span>Sign In</span>
+      </a>
+      <button type="button" class="btn-header-auth btn-header-logout" id="headerLogoutBtn" title="Sign out of RoomQ" hidden>
+        <i class="bi bi-box-arrow-right"></i>
+        <span>Sign Out</span>
+      </button>
+    `;
+    headerRight.append(authWrap);
+  }
+
+  const headerLoginBtn = document.getElementById('headerLoginBtn');
+  if (headerLoginBtn) {
+    headerLoginBtn.href = loginUrl;
+    headerLoginBtn.hidden = Boolean(currentUser);
+  }
+
+  const headerLogoutBtn = document.getElementById('headerLogoutBtn');
+  if (headerLogoutBtn) {
+    headerLogoutBtn.hidden = !currentUser;
+    headerLogoutBtn.addEventListener('click', performSignOut);
+  }
+
+  const headerAuthActions = document.getElementById('headerAuthActions');
+  if (headerAuthActions) {
+    headerAuthActions.hidden = false;
+  }
+
+  // Remove any redundant header dropdown login/account link if present
   const headerAccountAction = document.getElementById('headerAccountAction');
   if (headerAccountAction) {
-    if (currentUser) {
-      headerAccountAction.innerHTML = '<i class="bi bi-box-arrow-right me-2"></i>Sign out';
-      headerAccountAction.href = '#';
-      headerAccountAction.addEventListener('click', async (event) => {
-        event.preventDefault();
-        try {
-          await fetch('/api/logout', {
-            method: 'POST',
-            body: '{}',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin'
-          });
-        } catch {
-          // ignore
-        }
-        window.location.assign('/user/login.html');
-      });
-    } else {
-      const currentPath = window.location.pathname + window.location.search + window.location.hash;
-      const loginBase = isUserPage ? 'login.html' : '../user/login.html';
-      headerAccountAction.innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>Sign in';
-      headerAccountAction.href = `${loginBase}?returnTo=${encodeURIComponent(currentPath)}`;
+    const prevDivider = headerAccountAction.previousElementSibling;
+    if (prevDivider && prevDivider.classList.contains('dropdown-divider')) {
+      prevDivider.remove();
     }
+    headerAccountAction.remove();
   }
 
   const headerPortalSwitch = document.getElementById('headerPortalSwitch');
@@ -180,6 +187,7 @@ async function syncSessionAndNavigation() {
     globalSearch.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && globalSearch.value.trim()) {
         if (!window.location.pathname.endsWith('dashboard.html') &&
+            !window.location.pathname.endsWith('insights.html') &&
             !window.location.pathname.endsWith('buildings.html') &&
             !window.location.pathname.endsWith('classrooms.html')) {
           e.preventDefault();

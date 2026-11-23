@@ -26,6 +26,7 @@
             <div class="nav-group">
               <p class="nav-section-label">Overview</p>
               <a href="dashboard.html" class="nav-item active" aria-current="page"><span class="nav-icon"><i class="bi bi-grid-1x2"></i></span>Dashboard</a>
+              <a href="insights.html" class="nav-item"><span class="nav-icon"><i class="bi bi-bar-chart-line"></i></span>Campus Analytics</a>
             </div>
             <div class="nav-group">
               <p class="nav-section-label">Spaces</p>
@@ -39,12 +40,8 @@
             </div>
             <div class="nav-group">
               <p class="nav-section-label">Administration</p>
-              <a href="reports.html" class="nav-item"><span class="nav-icon"><i class="bi bi-bar-chart-line"></i></span>Reports</a>
+              <a href="reports.html" class="nav-item"><span class="nav-icon"><i class="bi bi-file-earmark-bar-graph"></i></span>Reports</a>
               <a href="activity-logs.html" class="nav-item"><span class="nav-icon"><i class="bi bi-clock-history"></i></span>Activity Logs</a>
-            </div>
-            <div class="nav-group">
-              <p class="nav-section-label">Account</p>
-              <a href="../user/login.html" class="nav-item" id="sidebarAccountLink"><span class="nav-icon"><i class="bi bi-box-arrow-in-right"></i></span>Sign in</a>
             </div>
           </nav>
           <div class="profile-box" id="sidebarProfileBox">
@@ -108,37 +105,80 @@
                 <i class="bi bi-chevron-down small text-muted ms-1 d-none d-sm-inline"></i>
               </button>
               <div class="dropdown-menu dropdown-menu-end workspace-dropdown-menu">
+                <a class="dropdown-item" href="insights.html"><i class="bi bi-bar-chart-line me-2"></i>Campus Analytics</a>
                 <a class="dropdown-item" href="schedules.html"><i class="bi bi-calendar3 me-2"></i>Manage Schedules</a>
-                <a class="dropdown-item" href="reports.html"><i class="bi bi-bar-chart-line me-2"></i>Reports &amp; Export</a>
+                <a class="dropdown-item" href="reports.html"><i class="bi bi-file-earmark-bar-graph me-2"></i>Reports &amp; Export</a>
                 <a class="dropdown-item" href="../user/dashboard.html" id="headerPortalSwitch"><i class="bi bi-eye me-2"></i>Switch to User Portal</a>
-                <hr class="dropdown-divider my-1" />
-                <a class="dropdown-item" href="../user/login.html" id="headerAccountAction"><i class="bi bi-box-arrow-in-right me-2"></i>Sign in</a>
               </div>
+            </div>
+
+            <div class="header-auth-actions" id="headerAuthActions">
+              <a href="../user/login.html" class="btn-header-auth btn-header-login" id="headerLoginBtn" title="Sign in to RoomQ">
+                <i class="bi bi-box-arrow-in-right"></i>
+                <span>Sign In</span>
+              </a>
+              <button type="button" class="btn-header-auth btn-header-logout" id="headerLogoutBtn" title="Sign out of RoomQ" hidden>
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Sign Out</span>
+              </button>
             </div>
           </div>
         </header>
 
-        <!-- Fluid Content Viewport -->
+        <!-- Fluid Content Viewport (Clean & Focused Admin Overview) -->
         <div class="workspace-body">
-          <!-- Top Action Bar (Blue Command Box) -->
-          <div class="workspace-action-bar box-corners">
-            <div>
-              <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
-                <h1 class="workspace-page-title mb-0">Classroom Operations Dashboard</h1>
-                <span class="live-pulse-badge d-none d-sm-inline-flex"><span class="live-pulse-dot"></span> System Live</span>
+          <!-- Featured Campus 3D Hero Banner (Dashboard Exclusive) -->
+          <section class="hero-campus-card box-corners" aria-label="Campus operations hero">
+            <div class="hero-campus-media" aria-hidden="true">
+              <div class="hero-campus-stage">
+                <img src="../assets/campus-layout.webp" alt="" class="hero-campus-img" />
               </div>
-              <p class="workspace-page-subtitle mb-0">Real-time room utilization, hourly timetable load, and conflict monitoring for <span id="dashboardLiveWindow">current hour</span>.</p>
+              <div class="hero-campus-overlay"></div>
+            </div>
+
+            <div class="hero-campus-body">
+              <div class="hero-campus-kicker">
+                <span class="hero-kicker-icon"><i class="bi bi-grid-fill"></i></span>
+                <span>NORSU - MAIN CAMPUS 1</span>
+              </div>
+              <h1 class="hero-campus-title">A brighter view of your<br />campus classrooms.</h1>
+              <p class="hero-campus-sub">
+                Monitor real-time room utilization, hourly timetable demand, and schedule conflicts at a glance.
+              </p>
+              <div class="hero-campus-actions">
+                <a href="classrooms.html" class="btn-hero-primary">
+                  <span>Check availability</span>
+                  <i class="bi bi-arrow-right"></i>
+                </a>
+                <a href="schedules.html" class="btn-hero-secondary">
+                  <span>Manage schedules</span>
+                </a>
+              </div>
+              <p class="hero-campus-note">
+                <span class="hero-note-dot"></span>
+                <span>Real-time operations · Every classroom, in view.</span>
+              </p>
+            </div>
+          </section>
+
+          <!-- Clean Live Operations Strip -->
+          <div class="dashboard-command-bar box-corners" role="region" aria-label="Operational controls and quick navigation">
+            <div class="command-bar-info">
+              <span class="live-pulse-badge"><span class="live-pulse-dot"></span> System Live</span>
+              <p class="command-bar-text mb-0">
+                Live classroom status &amp; schedule health for <strong id="dashboardLiveWindow">current hour</strong>
+              </p>
             </div>
             <div class="workspace-action-controls">
-              <button type="button" class="btn btn-outline-secondary btn-sm" id="adminRefreshBtn" title="Refresh Live Data" aria-label="Refresh Data">
+              <button type="button" class="btn btn-outline-primary btn-sm command-refresh-btn" id="adminRefreshBtn" title="Refresh Live Data" aria-label="Refresh Data">
                 <i class="bi bi-arrow-clockwise"></i>
               </button>
-              <a href="classrooms.html" class="btn btn-outline-primary btn-sm"><i class="bi bi-map"></i> Floor Plans</a>
+              <a href="insights.html" class="btn btn-outline-primary btn-sm"><i class="bi bi-bar-chart-line"></i> Campus Analytics</a>
               <a href="schedules.html" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Add Schedule</a>
             </div>
           </div>
 
-          <!-- Premium Summary KPI Row: 4 Equal-Width Cards with Box Corners -->
+          <!-- Summary KPI Row: 4 Clean Operational Cards -->
           <section class="dashboard-kpi-grid" aria-label="Key operational metrics">
             <a href="classrooms.html" class="kpi-card kpi-card-premium box-corners" id="dashboardKpiClassrooms">
               <div class="kpi-card-top">
@@ -210,246 +250,126 @@
                 <span id="adminHealthMeta">Checking schedule overlaps, unassigned courses, and live space usage.</span>
               </div>
             </div>
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
               <a href="assignments.html" class="btn btn-outline-primary btn-sm" id="adminHealthSecondaryBtn">Assignments</a>
               <a href="conflicts.html" class="btn btn-primary btn-sm" id="adminHealthPrimaryBtn"><i class="bi bi-shield-exclamation"></i> Conflict Monitor</a>
             </div>
           </div>
 
-          <!-- Core Workspace Grid: Asymmetric 8 / 4 Split -->
-          <div class="row g-4">
-            <!-- Left (Primary Panel - 8 Columns) -->
-            <div class="col-12 col-xl-8">
-              <!-- Hourly Timetable Demand Chart -->
-              <section class="workspace-panel box-corners" aria-labelledby="adminHourlyChartHeading">
-                <div class="workspace-panel-header">
-                  <div>
-                    <h2 class="workspace-panel-title" id="adminHourlyChartHeading">Today's Hourly Room Demand (7 AM – 7 PM)</h2>
-                    <p class="workspace-panel-sub">Scheduled class load vs ad-hoc room reservations per hour</p>
-                  </div>
-                  <div class="d-flex gap-3 small text-muted">
-                    <span><i class="bi bi-square-fill me-1" style="color: var(--rq-primary); font-size: 0.65rem;"></i>Classes</span>
-                    <span><i class="bi bi-square-fill me-1" style="color: #f59e0b; font-size: 0.65rem;"></i>Reservations</span>
-                  </div>
-                </div>
-
-                <div class="hourly-chart-summary">
-                  <div class="hourly-stat-chip">
-                    <span>Peak Load Hour</span>
-                    <strong id="adminPeakHourStat">—</strong>
-                  </div>
-                  <div class="hourly-stat-chip">
-                    <span>Room-Hours Today</span>
-                    <strong id="adminRoomHoursStat">—</strong>
-                  </div>
-                  <div class="hourly-stat-chip">
-                    <span>Active Faculty</span>
-                    <strong id="adminFacultyChipStat">—</strong>
-                  </div>
-                </div>
-
-                <div class="hourly-chart-grid" id="adminHourlyChartGrid" role="img" aria-label="Hourly classroom load bar chart">
-                  <div class="text-muted small text-center w-100 align-self-center">Calculating today's room load…</div>
-                </div>
-              </section>
-
-              <!-- Tabbed Operations Hub -->
-              <section class="dashboard-views-card box-corners mb-0" style="box-shadow: none;" aria-label="Dashboard views and operations">
-                <div class="dashboard-view-switcher-bar">
-                  <div class="dashboard-view-buttons" role="tablist" aria-label="Dashboard interactive views">
-                    <button type="button" role="tab" aria-selected="true" class="dashboard-view-btn active" data-view-target="schedules" id="viewBtnSchedules">
-                      <i class="bi bi-calendar3"></i>
-                      <span>Today's Schedules</span>
-                      <span class="view-btn-badge" id="tabBadgeSchedules">0</span>
-                    </button>
-                    <button type="button" role="tab" aria-selected="false" class="dashboard-view-btn" data-view-target="utilization" id="viewBtnUtilization">
-                      <i class="bi bi-bar-chart-line"></i>
-                      <span>Utilization</span>
-                      <span class="view-btn-badge" id="tabBadgeBuildings">0</span>
-                    </button>
-                    <button type="button" role="tab" aria-selected="false" class="dashboard-view-btn" data-view-target="activity" id="viewBtnActivity">
-                      <i class="bi bi-clock-history"></i>
-                      <span>Recent Activity</span>
-                      <span class="view-btn-badge" id="tabBadgeActivity">0</span>
-                    </button>
-                  </div>
-                  <div class="dashboard-view-actions">
-                    <span class="availability-legend" id="dashboardAvailabilityWindowLegend"><i></i> Current time range</span>
-                  </div>
-                </div>
-
-                <!-- Pane 1: Today's Schedules -->
-                <div class="dashboard-view-pane active" id="pane-schedules" role="tabpanel" aria-labelledby="viewBtnSchedules">
-                  <div class="panel-header-row mb-3">
-                    <div>
-                      <p class="panel-kicker">Daily timetable</p>
-                      <h2 id="todayScheduleHeading">Today's classroom schedules</h2>
-                    </div>
-                    <a href="schedules.html" class="panel-link-action">All schedules <i class="bi bi-arrow-right"></i></a>
-                  </div>
-                  <div class="dashboard-scroll-body">
-                    <div class="today-schedule-list" id="dashboardTodayScheduleList">
-                      <div class="dashboard-empty-state">Loading today's schedules…</div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Pane 2: Building Utilization -->
-                <div class="dashboard-view-pane" id="pane-utilization" role="tabpanel" aria-labelledby="viewBtnUtilization">
-                  <div class="panel-header-row mb-2">
-                    <div>
-                      <p class="panel-kicker">Space analytics</p>
-                      <h2 id="utilizationHeading">Classroom utilization by building</h2>
-                    </div>
-                    <a href="reports.html" class="panel-link-action">Full report <i class="bi bi-arrow-right"></i></a>
-                  </div>
-                  <div class="utilization-legend mb-3" aria-label="Utilization legend">
-                    <span><i style="background-color: var(--rq-primary)"></i> Occupied</span>
-                    <span><i style="background-color: var(--rq-warning)"></i> Reserved</span>
-                    <span><i style="background-color: #e2e8f0"></i> Available</span>
-                  </div>
-                  <div class="dashboard-scroll-body">
-                    <div class="utilization-list" id="buildingUtilizationList">
-                      <div class="dashboard-empty-state">Loading building utilization…</div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Pane 3: Recent Activity -->
-                <div class="dashboard-view-pane" id="pane-activity" role="tabpanel" aria-labelledby="viewBtnActivity">
-                  <div class="panel-header-row mb-3">
-                    <div>
-                      <p class="panel-kicker">Audit trail</p>
-                      <h2 id="recentActivityHeading">Recent system activity</h2>
-                    </div>
-                    <a href="activity-logs.html" class="panel-link-action">View all logs <i class="bi bi-arrow-right"></i></a>
-                  </div>
-                  <div class="dashboard-scroll-body">
-                    <div class="activity-feed-list" id="dashboardActivityList">
-                      <div class="dashboard-empty-state">Checking recent system activities…</div>
-                    </div>
-                  </div>
-                </div>
-              </section>
+          <!-- Unified Operations Hub: Button-Toggled Schedules & Quick Actions -->
+          <section class="dashboard-views-card box-corners mb-0" aria-label="Today's classroom schedules and quick actions">
+            <div class="dashboard-view-switcher-bar">
+              <div class="dashboard-view-buttons" role="tablist" aria-label="Switch between today's schedules and quick actions">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected="true"
+                  aria-controls="pane-schedules"
+                  class="dashboard-view-btn active"
+                  data-view-target="schedules"
+                  id="viewBtnSchedules"
+                >
+                  <i class="bi bi-calendar3"></i>
+                  <span>Today's Classroom Schedules</span>
+                  <span class="view-btn-badge" id="tabBadgeSchedules">0</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected="false"
+                  aria-controls="pane-actions"
+                  class="dashboard-view-btn"
+                  data-view-target="actions"
+                  id="viewBtnActions"
+                >
+                  <i class="bi bi-lightning-charge"></i>
+                  <span>Quick Actions</span>
+                  <span class="view-btn-badge">6</span>
+                </button>
+              </div>
+              <div class="dashboard-view-actions">
+                <span class="availability-legend" id="dashboardAvailabilityWindowLegend"><i></i> Current time range</span>
+                <a href="schedules.html" class="btn btn-outline-primary btn-sm">All Schedules <i class="bi bi-arrow-right"></i></a>
+              </div>
             </div>
 
-            <!-- Right (Secondary Panel - 4 Columns) -->
-            <div class="col-12 col-xl-4">
-              <!-- Live Space Distribution SVG Donut Card -->
-              <section class="workspace-panel box-corners" aria-labelledby="adminPulseHeading">
-                <div class="workspace-panel-header">
-                  <div>
-                    <h2 class="workspace-panel-title" id="adminPulseHeading">Space Distribution</h2>
-                    <p class="workspace-panel-sub">Real-time campus utilization</p>
-                  </div>
-                  <span class="status-pill status-pill-available" id="dashboardHeroUtilizationText">Loading…</span>
+            <!-- Pane 1: Today's Classroom Schedules -->
+            <div class="dashboard-view-pane active" id="pane-schedules" role="tabpanel" aria-labelledby="viewBtnSchedules">
+              <div class="panel-header-row mb-3">
+                <div>
+                  <p class="panel-kicker">Daily timetable</p>
+                  <h2 id="todayScheduleHeading">Today's Classroom Schedules</h2>
                 </div>
-
-                <div class="donut-layout mb-3">
-                  <div class="donut-svg-wrap">
-                    <svg viewBox="0 0 36 36" aria-hidden="true">
-                      <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#e2e8f0" stroke-width="3.6"></circle>
-                      <circle id="adminDonutAvail" cx="18" cy="18" r="15.9155" fill="none" stroke="#007fff" stroke-width="3.6" stroke-dasharray="0 100" stroke-dashoffset="0"></circle>
-                      <circle id="adminDonutOcc" cx="18" cy="18" r="15.9155" fill="none" stroke="#64748b" stroke-width="3.6" stroke-dasharray="0 100" stroke-dashoffset="0"></circle>
-                      <circle id="adminDonutRes" cx="18" cy="18" r="15.9155" fill="none" stroke="#f59e0b" stroke-width="3.6" stroke-dasharray="0 100" stroke-dashoffset="0"></circle>
-                    </svg>
-                    <div class="donut-center-label">
-                      <strong id="adminDonutPct">—%</strong>
-                      <span>Open</span>
-                    </div>
-                  </div>
-                  <div class="donut-legend-list">
-                    <div class="donut-legend-row">
-                      <span class="donut-legend-key"><i class="donut-legend-dot" style="background-color: var(--rq-primary);"></i> Available</span>
-                      <span class="donut-legend-val" id="adminDonutOpenCount">—</span>
-                    </div>
-                    <div class="donut-legend-row">
-                      <span class="donut-legend-key"><i class="donut-legend-dot" style="background-color: #64748b;"></i> Occupied</span>
-                      <span class="donut-legend-val" id="adminDonutOccCount">—</span>
-                    </div>
-                    <div class="donut-legend-row">
-                      <span class="donut-legend-key"><i class="donut-legend-dot" style="background-color: #f59e0b;"></i> Reserved</span>
-                      <span class="donut-legend-val" id="adminDonutResCount">—</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="row g-2 mb-2">
-                  <div class="col-4">
-                    <div class="blue-stat-mini-box">
-                      <span>Scheduled</span>
-                      <strong id="dashboardTotalClasses">—</strong>
-                    </div>
-                  </div>
-                  <div class="col-4">
-                    <div class="blue-stat-mini-box">
-                      <span>Assigned</span>
-                      <strong id="dashboardAssignedRooms">—</strong>
-                    </div>
-                  </div>
-                  <div class="col-4">
-                    <div class="blue-stat-mini-box">
-                      <span>Faculty</span>
-                      <strong id="dashboardTotalFaculty">—</strong>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="blue-summary-strip">
-                  <span>Buildings: <strong id="dashboardHeroBuildings">—</strong></span>
-                  <span>Rooms: <strong id="dashboardHeroRooms">—</strong></span>
-                </div>
-              </section>
-
-              <!-- Quick Management Shortcuts -->
-              <section class="workspace-panel box-corners mb-0" aria-labelledby="quickMgmtHeading">
-                <div class="workspace-panel-header">
-                  <div>
-                    <h2 class="workspace-panel-title" id="quickMgmtHeading">Quick Actions</h2>
-                    <p class="workspace-panel-sub">Direct administrative workflows</p>
-                  </div>
-                </div>
-
-                <div class="d-flex flex-column gap-2">
-                  <a href="assignments.html#faculty" class="quick-action-tile">
-                    <span class="quick-action-icon"><i class="bi bi-person-plus"></i></span>
-                    <div>
-                      <strong>Faculty Assignment</strong>
-                      <span>Assign instructors &amp; teaching loads</span>
-                    </div>
-                  </a>
-                  <a href="assignments.html#rooms" class="quick-action-tile">
-                    <span class="quick-action-icon"><i class="bi bi-door-closed"></i></span>
-                    <div>
-                      <strong>Room Allocation</strong>
-                      <span>Assign spaces &amp; reservations</span>
-                    </div>
-                  </a>
-                  <a href="conflicts.html" class="quick-action-tile">
-                    <span class="quick-action-icon"><i class="bi bi-shield-exclamation"></i></span>
-                    <div>
-                      <strong>Conflict Monitor</strong>
-                      <span>Inspect &amp; resolve overlaps</span>
-                    </div>
-                  </a>
-                  <a href="reports.html" class="quick-action-tile">
-                    <span class="quick-action-icon"><i class="bi bi-file-earmark-bar-graph"></i></span>
-                    <div>
-                      <strong>Reports &amp; Export</strong>
-                      <span>Utilization &amp; teaching loads</span>
-                    </div>
-                  </a>
-                </div>
-              </section>
+                <a href="schedules.html" class="panel-link-action">Manage all schedules <i class="bi bi-arrow-right"></i></a>
+              </div>
+              <div class="today-schedule-list" id="dashboardTodayScheduleList">
+                <div class="dashboard-empty-state">Loading today's schedules…</div>
+              </div>
             </div>
-          </div>
+
+            <!-- Pane 2: Quick Actions -->
+            <div class="dashboard-view-pane" id="pane-actions" role="tabpanel" aria-labelledby="viewBtnActions">
+              <div class="panel-header-row mb-3">
+                <div>
+                  <p class="panel-kicker">Administrative workflows</p>
+                  <h2 id="quickMgmtHeading">Quick Actions</h2>
+                </div>
+                <a href="insights.html" class="panel-link-action">Open analytics <i class="bi bi-arrow-right"></i></a>
+              </div>
+
+              <div class="quick-action-grid quick-action-grid-3">
+                <a href="insights.html" class="quick-action-tile">
+                  <span class="quick-action-icon"><i class="bi bi-bar-chart-line"></i></span>
+                  <div>
+                    <strong>Campus Analytics</strong>
+                    <span>Hourly demand, donut chart &amp; activity feed</span>
+                  </div>
+                </a>
+                <a href="schedules.html" class="quick-action-tile">
+                  <span class="quick-action-icon"><i class="bi bi-calendar-plus"></i></span>
+                  <div>
+                    <strong>Schedule Management</strong>
+                    <span>Create, edit &amp; filter weekly timetables</span>
+                  </div>
+                </a>
+                <a href="assignments.html#faculty" class="quick-action-tile">
+                  <span class="quick-action-icon"><i class="bi bi-person-plus"></i></span>
+                  <div>
+                    <strong>Faculty Assignment</strong>
+                    <span>Assign instructors &amp; teaching loads</span>
+                  </div>
+                </a>
+                <a href="assignments.html#rooms" class="quick-action-tile">
+                  <span class="quick-action-icon"><i class="bi bi-door-closed"></i></span>
+                  <div>
+                    <strong>Room Allocation</strong>
+                    <span>Assign classroom spaces &amp; reservations</span>
+                  </div>
+                </a>
+                <a href="conflicts.html" class="quick-action-tile">
+                  <span class="quick-action-icon"><i class="bi bi-shield-exclamation"></i></span>
+                  <div>
+                    <strong>Conflict Monitor</strong>
+                    <span>Inspect &amp; resolve schedule overlaps</span>
+                  </div>
+                </a>
+                <a href="reports.html" class="quick-action-tile">
+                  <span class="quick-action-icon"><i class="bi bi-file-earmark-bar-graph"></i></span>
+                  <div>
+                    <strong>Reports &amp; Export</strong>
+                    <span>Utilization summaries &amp; CSV export</span>
+                  </div>
+                </a>
+              </div>
+            </div>
+          </section>
         </div>
 
         <!-- Minimalist Anchored Footer -->
         <footer class="workspace-footer">
           <div>RoomQ Classroom Management System · © 2026 NORSU-MC 1</div>
           <div class="workspace-footer-links">
-            <a href="../user/classrooms.html#guide">Booking Policy</a>
+            <a href="insights.html">Campus Analytics</a>
             <a href="activity-logs.html">Audit Trail</a>
             <a href="conflicts.html" class="system-status-link"><span class="status-dot-live" aria-hidden="true"></span> System Operational</a>
           </div>

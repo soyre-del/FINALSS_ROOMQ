@@ -51,7 +51,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const previewWindowBanner = document.getElementById('previewWindowBanner');
   const previewWindowText = document.getElementById('previewWindowText');
   const resetToLiveNowBtn = document.getElementById('resetToLiveNowBtn');
-  const refreshDashboardBtn = document.getElementById('refreshDashboardBtn');
+  const refreshDashboardBtns = [
+    ...document.querySelectorAll('#refreshDashboardBtn, #topbarRefreshDashboardBtn, [data-refresh-dashboard]')
+  ];
 
   const tableBody = document.getElementById('userBuildingStatsTableBody');
   const liveRoomsBody = document.getElementById('userLiveRoomsTableBody');
@@ -579,15 +581,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       liveDirectoryCountBadge.textContent = `${filtered.length} ${filtered.length === 1 ? 'room' : 'rooms'}`;
     }
 
-    const limit = showAllRooms ? filtered.length : 10;
+    const defaultLimit = Number(liveRoomsBody.dataset.defaultLimit) || 10;
+    const limit = showAllRooms ? filtered.length : defaultLimit;
     const visibleRooms = filtered.slice(0, limit);
 
     if (liveDirectoryFooter && liveDirectoryPaginationText && toggleShowAllRoomsBtn) {
-      if (filtered.length > 10) {
+      if (filtered.length > defaultLimit) {
         liveDirectoryFooter.hidden = false;
         liveDirectoryPaginationText.textContent = `Showing ${visibleRooms.length} of ${filtered.length} matching classrooms`;
         toggleShowAllRoomsBtn.textContent = showAllRooms
-          ? 'Show top 10 rooms'
+          ? `Show top ${defaultLimit} rooms`
           : `Show all ${filtered.length} rooms`;
       } else {
         liveDirectoryFooter.hidden = true;
@@ -792,10 +795,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const token = ++latestFetchToken;
     updateWindowChrome();
 
-    if (refreshDashboardBtn) {
-      refreshDashboardBtn.disabled = true;
-      refreshDashboardBtn.querySelector('i')?.classList.add('spin-icon');
-    }
+    refreshDashboardBtns.forEach((btn) => {
+      btn.disabled = true;
+      btn.querySelector('i')?.classList.add('spin-icon');
+    });
 
     try {
       const availUrl = `/api/availability?date=${activeWindow.localDate}&startTime=${activeWindow.startTime}&endTime=${activeWindow.endTime}`;
@@ -845,9 +848,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         liveRoomsBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger">Failed to load live classrooms: ${safeErr}</td></tr>`;
       }
     } finally {
-      if (refreshDashboardBtn && token === latestFetchToken) {
-        refreshDashboardBtn.disabled = false;
-        refreshDashboardBtn.querySelector('i')?.classList.remove('spin-icon');
+      if (token === latestFetchToken) {
+        refreshDashboardBtns.forEach((btn) => {
+          btn.disabled = false;
+          btn.querySelector('i')?.classList.remove('spin-icon');
+        });
       }
     }
   }
@@ -941,14 +946,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  if (refreshDashboardBtn) {
-    refreshDashboardBtn.addEventListener('click', () => {
+  refreshDashboardBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
       if (activeWindow.isLive) {
         activeWindow = computeWindowFromOffset(0);
       }
       loadDashboardData({ refreshStatic: true });
     });
-  }
+  });
 
   sortButtons.forEach((btn) => {
     btn.addEventListener('click', () => {

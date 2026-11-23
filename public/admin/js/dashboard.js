@@ -1,6 +1,12 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const totalClassesEl = document.getElementById('dashboardTotalClasses');
-  if (!totalClassesEl) {
+  const hasAdminDashboardRoot = Boolean(
+    totalClassesEl ||
+    document.getElementById('dashboardTotalClassrooms') ||
+    document.getElementById('adminHourlyChartGrid') ||
+    document.getElementById('dashboardTodayScheduleList')
+  );
+  if (!hasAdminDashboardRoot) {
     return;
   }
 
@@ -163,6 +169,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (tabBadgeBuildings) {
       tabBadgeBuildings.textContent = String(buildings.length);
     }
+    if (!utilizationList) return;
     utilizationList.replaceChildren();
     if (!buildings.length && !rooms.length) {
       const empty = document.createElement('div');
@@ -247,6 +254,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function renderTodaySchedules(schedules, roomsById) {
+    if (!todayScheduleList) return;
     todayScheduleList.replaceChildren();
     const todayItems = schedules
       .filter((item) => appliesOnDate(item, localDate))
@@ -391,7 +399,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         msg.textContent = 'Sign in with an administrator account to inspect the live audit log.';
         const btn = document.createElement('a');
         btn.className = 'btn btn-sm btn-outline-primary';
-        btn.href = '../user/login.html?returnTo=%2Fadmin%2Fdashboard.html';
+        btn.href = `../user/login.html?returnTo=${encodeURIComponent(window.location.pathname)}`;
         btn.textContent = 'Sign in as Administrator';
         box.append(msg, btn);
       } else {
@@ -405,6 +413,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const viewButtons = [...document.querySelectorAll('.dashboard-view-btn[data-view-target]')];
   const viewPanes = {
     schedules: document.getElementById('pane-schedules'),
+    actions: document.getElementById('pane-actions'),
     utilization: document.getElementById('pane-utilization'),
     activity: document.getElementById('pane-activity')
   };
@@ -433,9 +442,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (kpiToday) {
     kpiToday.addEventListener('click', (e) => {
       if (e.metaKey || e.ctrlKey) return;
-      e.preventDefault();
-      switchDashboardView('schedules');
-      document.querySelector('.dashboard-views-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const targetPanel =
+        document.getElementById('todayScheduleHeading')?.closest('section') ||
+        document.querySelector('.dashboard-views-card');
+      if (targetPanel) {
+        e.preventDefault();
+        switchDashboardView('schedules');
+        targetPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     });
   }
 
@@ -678,10 +692,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (availableNowEl) availableNowEl.textContent = String(availCount);
     if (occupancyMetaEl) occupancyMetaEl.textContent = `${occCount} occupied · ${resCount} reserved`;
 
-    totalClassesEl.textContent = String(stats.totalScheduledClasses);
-    document.getElementById('dashboardAssignedRooms').textContent = String(stats.totalAssignedClassrooms);
-    document.getElementById('dashboardTodayClasses').textContent = String(stats.todaysClasses);
-    document.getElementById('dashboardUnassignedClasses').textContent = String(stats.unassignedClasses);
+    if (totalClassesEl) totalClassesEl.textContent = String(stats.totalScheduledClasses);
+    const assignedRoomsEl = document.getElementById('dashboardAssignedRooms');
+    if (assignedRoomsEl) assignedRoomsEl.textContent = String(stats.totalAssignedClassrooms);
+    const todayClassesEl = document.getElementById('dashboardTodayClasses');
+    if (todayClassesEl) todayClassesEl.textContent = String(stats.todaysClasses);
+    const unassignedClassesEl = document.getElementById('dashboardUnassignedClasses');
+    if (unassignedClassesEl) unassignedClassesEl.textContent = String(stats.unassignedClasses);
 
     if (trendSessions) {
       trendSessions.textContent = `${stats.totalScheduledClasses} total`;
@@ -750,10 +767,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderRooms();
     loadRecentActivity();
   } catch (error) {
-    totalClassesEl.textContent = '—';
-    document.getElementById('dashboardAssignedRooms').textContent = '—';
-    document.getElementById('dashboardTodayClasses').textContent = '—';
-    document.getElementById('dashboardUnassignedClasses').textContent = '—';
+    if (totalClassesEl) totalClassesEl.textContent = '—';
+    const assignedRoomsEl = document.getElementById('dashboardAssignedRooms');
+    if (assignedRoomsEl) assignedRoomsEl.textContent = '—';
+    const todayClassesEl = document.getElementById('dashboardTodayClasses');
+    if (todayClassesEl) todayClassesEl.textContent = '—';
+    const unassignedClassesEl = document.getElementById('dashboardUnassignedClasses');
+    if (unassignedClassesEl) unassignedClassesEl.textContent = '—';
     if (cardsContainer) cardsContainer.replaceChildren();
     if (emptyEl) {
       emptyEl.hidden = false;
