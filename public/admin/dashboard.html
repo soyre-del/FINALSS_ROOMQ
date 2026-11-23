@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dashboard | RoomQ Admin</title>
+    <title>Admin Dashboard | RoomQ</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="../shared/css/roomq.css" />
@@ -58,240 +58,402 @@
       </aside>
 
       <main class="main-content">
-        <header class="topbar">
-          <div class="topbar-title">
+        <!-- Sticky 64px Pure White Header -->
+        <header class="workspace-header">
+          <div class="workspace-header-left">
             <button class="menu-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebar" aria-controls="appSidebar" aria-label="Open menu"><i class="bi bi-list"></i></button>
-            <div>
-              <p class="eyebrow">NORSU-MC 1 · <span id="todayDate"></span></p>
-              <h1>Classroom Operations Dashboard</h1>
+            <div class="workspace-breadcrumb-wrap">
+              <nav class="workspace-breadcrumb" aria-label="Breadcrumb">
+                <span>Admin Portal</span>
+                <span class="workspace-breadcrumb-sep">/</span>
+                <span>Dashboard</span>
+                <span class="workspace-breadcrumb-sep d-none d-sm-inline">·</span>
+                <span class="d-none d-sm-inline" id="todayDate"></span>
+              </nav>
+              <span class="workspace-header-title">Classroom Operations</span>
             </div>
           </div>
 
-          <div class="topbar-actions">
-            <label class="search-box d-none d-xl-block" aria-label="Search classrooms">
+          <div class="workspace-header-right">
+            <label class="workspace-search d-none d-lg-block" aria-label="Search classrooms or buildings">
               <i class="bi bi-search"></i>
-              <input id="dashboardSearchInput" class="form-control" type="search" placeholder="Filter rooms or buildings…" aria-label="Filter classrooms or buildings" />
+              <input id="globalWorkspaceSearch" class="form-control" type="search" placeholder="Search rooms, buildings, or schedules…" />
             </label>
-            <a href="conflicts.html" class="topbar-status-pill d-none d-md-inline-flex" id="topbarConflictPill">
-              <span class="topbar-status-dot"></span>
-              <span id="topbarConflictLabel">Checking status…</span>
-            </a>
-            <a href="schedules.html" class="btn btn-primary btn-sm d-none d-sm-inline-flex align-items-center gap-1">
-              <i class="bi bi-plus-lg"></i> Add Schedule
-            </a>
-            <div class="user-pill d-none d-sm-flex" id="topbarUserPill">
-              <div class="user-avatar" id="topbarAvatar">AD</div>
-              <div>
-                <strong id="topbarUsername">Administrator</strong>
-                <span id="topbarRole">Admin Portal</span>
+
+            <div class="dropdown">
+              <button class="workspace-icon-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Conflict Notifications">
+                <i class="bi bi-bell"></i>
+                <span class="notif-dot" aria-hidden="true"></span>
+              </button>
+              <div class="dropdown-menu dropdown-menu-end workspace-dropdown-menu">
+                <p class="px-2 py-1 mb-1 small fw-bold text-dark">Schedule Alerts</p>
+                <div class="px-2 py-1 small">
+                  <a href="conflicts.html" class="topbar-status-pill d-inline-flex text-decoration-none" id="topbarConflictPill">
+                    <span class="topbar-status-dot"></span>
+                    <span id="topbarConflictLabel">Checking status…</span>
+                  </a>
+                </div>
+                <hr class="dropdown-divider my-1" />
+                <a class="dropdown-item" href="conflicts.html"><i class="bi bi-shield-exclamation me-2"></i>Open Conflict Monitor</a>
+              </div>
+            </div>
+
+            <div class="dropdown">
+              <button class="workspace-profile-trigger" type="button" id="topbarUserPill" data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="user-avatar" id="topbarAvatar">AD</span>
+                <span class="workspace-profile-meta d-none d-sm-flex">
+                  <strong id="topbarUsername">Administrator</strong>
+                  <span id="topbarRole">Admin Portal</span>
+                </span>
+                <i class="bi bi-chevron-down small text-muted ms-1 d-none d-sm-inline"></i>
+              </button>
+              <div class="dropdown-menu dropdown-menu-end workspace-dropdown-menu">
+                <a class="dropdown-item" href="schedules.html"><i class="bi bi-calendar3 me-2"></i>Manage Schedules</a>
+                <a class="dropdown-item" href="reports.html"><i class="bi bi-bar-chart-line me-2"></i>Reports &amp; Export</a>
+                <a class="dropdown-item" href="../user/dashboard.html" id="headerPortalSwitch"><i class="bi bi-eye me-2"></i>Switch to User Portal</a>
+                <hr class="dropdown-divider my-1" />
+                <a class="dropdown-item" href="../user/login.html" id="headerAccountAction"><i class="bi bi-box-arrow-in-right me-2"></i>Sign in</a>
               </div>
             </div>
           </div>
         </header>
 
-        <section class="campus-hero" aria-labelledby="campus-hero-title">
-          <div class="campus-hero-copy">
-            <p class="campus-kicker"><i class="bi bi-geo-alt-fill"></i> NORSU · Main Campus 1 Operations</p>
-            <h2 id="campus-hero-title">Campus classroom operations at a glance.</h2>
-            <p class="campus-description">Monitor building utilization, inspect live room availability, and keep class schedules conflict-free.</p>
-            <div class="campus-actions">
-              <a class="btn btn-light" href="classrooms.html"><i class="bi bi-map"></i> Explore floor plans</a>
-              <a class="btn btn-outline-light" href="schedules.html"><i class="bi bi-calendar3"></i> Manage schedules</a>
-              <a class="btn btn-outline-light" href="assignments.html"><i class="bi bi-journal-check"></i> Room assignments</a>
-            </div>
-          </div>
-
-          <aside class="hero-pulse-card" aria-label="Live campus pulse">
-            <div class="hero-pulse-header">
-              <span class="hero-pulse-live"><span class="hero-pulse-dot"></span> Live Campus Pulse</span>
-              <span class="hero-pulse-window" id="dashboardLiveWindow">Current hour</span>
-            </div>
-            <div class="hero-pulse-metrics">
-              <div class="hero-pulse-metric">
-                <span>Buildings</span>
-                <strong id="dashboardHeroBuildings">—</strong>
+        <!-- Fluid Content Viewport -->
+        <div class="workspace-body">
+          <!-- Top Action Bar (Blue Command Box) -->
+          <div class="workspace-action-bar box-corners">
+            <div>
+              <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                <h1 class="workspace-page-title mb-0">Classroom Operations Dashboard</h1>
+                <span class="live-pulse-badge d-none d-sm-inline-flex"><span class="live-pulse-dot"></span> System Live</span>
               </div>
-              <div class="hero-pulse-metric">
-                <span>Total Rooms</span>
-                <strong id="dashboardHeroRooms">—</strong>
-              </div>
+              <p class="workspace-page-subtitle mb-0">Real-time room utilization, hourly timetable load, and conflict monitoring for <span id="dashboardLiveWindow">current hour</span>.</p>
             </div>
-            <div class="hero-pulse-bar-label">
-              <span>Current Availability</span>
-              <span id="dashboardHeroUtilizationText">Loading…</span>
-            </div>
-            <div class="hero-pulse-bar" role="img" aria-label="Current room availability breakdown">
-              <div class="hero-pulse-bar-available" id="heroBarAvailable" style="width: 0%"></div>
-              <div class="hero-pulse-bar-occupied" id="heroBarOccupied" style="width: 0%"></div>
-              <div class="hero-pulse-bar-reserved" id="heroBarReserved" style="width: 0%"></div>
-            </div>
-          </aside>
-        </section>
-
-        <section class="dashboard-kpi-grid" aria-label="Key operational metrics">
-          <a href="classrooms.html" class="kpi-card kpi-primary" id="dashboardKpiClassrooms">
-            <div class="kpi-card-body">
-              <p class="kpi-label">Total Classrooms</p>
-              <strong class="kpi-value" id="dashboardTotalClassrooms">—</strong>
-              <span class="kpi-meta" id="dashboardTotalBuildingsMeta">Loading campus buildings…</span>
-            </div>
-            <div class="kpi-icon-well"><i class="bi bi-buildings"></i></div>
-          </a>
-
-          <a href="classrooms.html?status=available" class="kpi-card kpi-success" id="dashboardKpiAvailable">
-            <div class="kpi-card-body">
-              <p class="kpi-label">Available Right Now</p>
-              <strong class="kpi-value" id="dashboardAvailableNow">—</strong>
-              <span class="kpi-meta" id="dashboardOccupancyMeta">Checking live room status…</span>
-            </div>
-            <div class="kpi-icon-well"><i class="bi bi-door-open"></i></div>
-          </a>
-
-          <a href="schedules.html" class="kpi-card" id="dashboardKpiScheduled">
-            <div class="kpi-card-body">
-              <p class="kpi-label">Total Scheduled Classes</p>
-              <strong class="kpi-value" id="dashboardTotalClasses">—</strong>
-              <span class="kpi-meta"><span id="dashboardAssignedRooms">—</span> classrooms assigned</span>
-            </div>
-            <div class="kpi-icon-well"><i class="bi bi-calendar3"></i></div>
-          </a>
-
-          <a href="schedules.html" class="kpi-card" id="dashboardKpiToday">
-            <div class="kpi-card-body">
-              <p class="kpi-label">Today's Classes</p>
-              <strong class="kpi-value" id="dashboardTodayClasses">—</strong>
-              <span class="kpi-meta">Scheduled sessions for today</span>
-            </div>
-            <div class="kpi-icon-well"><i class="bi bi-calendar-day"></i></div>
-          </a>
-
-          <a href="assignments.html#faculty" class="kpi-card">
-            <div class="kpi-card-body">
-              <p class="kpi-label">Active Faculty</p>
-              <strong class="kpi-value" id="dashboardTotalFaculty">—</strong>
-              <span class="kpi-meta">Instructors on active timetable</span>
-            </div>
-            <div class="kpi-icon-well"><i class="bi bi-person-badge"></i></div>
-          </a>
-
-          <a href="conflicts.html" class="kpi-card" id="dashboardConflictsCard">
-            <div class="kpi-card-body">
-              <p class="kpi-label">Detected Conflicts</p>
-              <strong class="kpi-value" id="dashboardTotalConflicts">—</strong>
-              <span class="kpi-meta"><span id="dashboardUnassignedClasses">—</span> unassigned classes</span>
-            </div>
-            <div class="kpi-icon-well"><i class="bi bi-exclamation-triangle"></i></div>
-          </a>
-        </section>
-
-        <section class="quick-action-grid" aria-label="Quick management shortcuts">
-          <a href="assignments.html#faculty" class="quick-action-tile">
-            <span class="quick-action-icon"><i class="bi bi-person-plus"></i></span>
-            <div>
-              <strong>Faculty Assignment</strong>
-              <span>Assign instructors &amp; loads</span>
-            </div>
-          </a>
-          <a href="assignments.html#rooms" class="quick-action-tile">
-            <span class="quick-action-icon"><i class="bi bi-door-closed"></i></span>
-            <div>
-              <strong>Room Allocation</strong>
-              <span>Assign spaces &amp; reservations</span>
-            </div>
-          </a>
-          <a href="conflicts.html" class="quick-action-tile">
-            <span class="quick-action-icon"><i class="bi bi-shield-exclamation"></i></span>
-            <div>
-              <strong>Conflict Monitor</strong>
-              <span>Inspect &amp; resolve overlaps</span>
-            </div>
-          </a>
-          <a href="reports.html" class="quick-action-tile">
-            <span class="quick-action-icon"><i class="bi bi-file-earmark-bar-graph"></i></span>
-            <div>
-              <strong>Reports &amp; Export</strong>
-              <span>Utilization &amp; teaching loads</span>
-            </div>
-          </a>
-        </section>
-
-        <section class="dashboard-views-card" aria-label="Dashboard views and operations">
-          <div class="dashboard-view-switcher-bar">
-            <div class="dashboard-view-buttons" role="tablist" aria-label="Dashboard interactive views">
-              <button type="button" role="tab" aria-selected="true" class="dashboard-view-btn active" data-view-target="schedules" id="viewBtnSchedules">
-                <i class="bi bi-calendar3"></i>
-                <span>Today's Schedules</span>
-                <span class="view-btn-badge" id="tabBadgeSchedules">0</span>
+            <div class="workspace-action-controls">
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="adminRefreshBtn" title="Refresh Live Data" aria-label="Refresh Data">
+                <i class="bi bi-arrow-clockwise"></i>
               </button>
-              <button type="button" role="tab" aria-selected="false" class="dashboard-view-btn" data-view-target="utilization" id="viewBtnUtilization">
-                <i class="bi bi-bar-chart-line"></i>
-                <span>Utilization</span>
-                <span class="view-btn-badge" id="tabBadgeBuildings">0</span>
-              </button>
-              <button type="button" role="tab" aria-selected="false" class="dashboard-view-btn" data-view-target="activity" id="viewBtnActivity">
-                <i class="bi bi-clock-history"></i>
-                <span>Recent Activity</span>
-                <span class="view-btn-badge" id="tabBadgeActivity">0</span>
-              </button>
-            </div>
-            <div class="dashboard-view-actions">
-              <span class="availability-legend" id="dashboardAvailabilityWindowLegend"><i></i> Current time range</span>
+              <a href="classrooms.html" class="btn btn-outline-primary btn-sm"><i class="bi bi-map"></i> Floor Plans</a>
+              <a href="schedules.html" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Add Schedule</a>
             </div>
           </div>
 
-          <!-- Pane 1: Today's Schedules -->
-          <div class="dashboard-view-pane active" id="pane-schedules" role="tabpanel" aria-labelledby="viewBtnSchedules">
-            <div class="panel-header-row mb-3">
+          <!-- Premium Summary KPI Row: 4 Equal-Width Cards with Box Corners -->
+          <section class="dashboard-kpi-grid" aria-label="Key operational metrics">
+            <a href="classrooms.html" class="kpi-card kpi-card-premium box-corners" id="dashboardKpiClassrooms">
+              <div class="kpi-card-top">
+                <span class="kpi-label mb-0">Total Rooms</span>
+                <span class="kpi-trend-pill kpi-trend-neutral" id="adminTrendBuildings">8 facilities</span>
+              </div>
+              <div class="d-flex align-items-end justify-content-between w-100">
+                <div>
+                  <strong class="kpi-value" id="dashboardTotalClassrooms">—</strong>
+                  <span class="kpi-meta" id="dashboardTotalBuildingsMeta">Loading campus buildings…</span>
+                </div>
+                <div class="kpi-icon-well"><i class="bi bi-buildings"></i></div>
+              </div>
+              <div class="kpi-mini-bar"><span style="width: 100%; background-color: #cbd5e1;"></span></div>
+            </a>
+
+            <a href="classrooms.html?status=available" class="kpi-card kpi-card-premium kpi-primary box-corners" id="dashboardKpiAvailable">
+              <div class="kpi-card-top">
+                <span class="kpi-label mb-0">Available Now</span>
+                <span class="kpi-trend-pill kpi-trend-azure" id="adminTrendAvailPct">Live · —%</span>
+              </div>
+              <div class="d-flex align-items-end justify-content-between w-100">
+                <div>
+                  <strong class="kpi-value" id="dashboardAvailableNow">—</strong>
+                  <span class="kpi-meta" id="dashboardOccupancyMeta">Checking live room status…</span>
+                </div>
+                <div class="kpi-icon-well"><i class="bi bi-door-open"></i></div>
+              </div>
+              <div class="kpi-mini-bar"><span id="adminMiniBarAvail" style="width: 0%"></span></div>
+            </a>
+
+            <a href="conflicts.html" class="kpi-card kpi-card-premium box-corners box-corners-warning" id="dashboardConflictsCard">
+              <div class="kpi-card-top">
+                <span class="kpi-label mb-0">Detected Conflicts</span>
+                <span class="kpi-trend-pill kpi-trend-success" id="adminTrendConflictStatus">Checking</span>
+              </div>
+              <div class="d-flex align-items-end justify-content-between w-100">
+                <div>
+                  <strong class="kpi-value" id="dashboardTotalConflicts">—</strong>
+                  <span class="kpi-meta"><span id="dashboardUnassignedClasses">—</span> unassigned classes</span>
+                </div>
+                <div class="kpi-icon-well"><i class="bi bi-exclamation-triangle"></i></div>
+              </div>
+              <div class="kpi-mini-bar"><span id="adminMiniBarConflicts" style="width: 0%; background-color: var(--rq-success);"></span></div>
+            </a>
+
+            <a href="schedules.html" class="kpi-card kpi-card-premium box-corners" id="dashboardKpiToday">
+              <div class="kpi-card-top">
+                <span class="kpi-label mb-0">Today's Classes</span>
+                <span class="kpi-trend-pill kpi-trend-neutral" id="adminTrendSessions">Active today</span>
+              </div>
+              <div class="d-flex align-items-end justify-content-between w-100">
+                <div>
+                  <strong class="kpi-value" id="dashboardTodayClasses">—</strong>
+                  <span class="kpi-meta">Scheduled sessions today</span>
+                </div>
+                <div class="kpi-icon-well"><i class="bi bi-calendar-day"></i></div>
+              </div>
+              <div class="kpi-mini-bar"><span id="adminMiniBarToday" style="width: 65%; background-color: #64748b;"></span></div>
+            </a>
+          </section>
+
+          <!-- Timetable Operational Health Strip -->
+          <div class="quick-finder-strip box-corners" id="adminHealthStrip">
+            <div class="quick-finder-copy">
+              <span class="quick-finder-icon" id="adminHealthIcon"><i class="bi bi-shield-check"></i></span>
               <div>
-                <p class="panel-kicker">Daily timetable</p>
-                <h2 id="todayScheduleHeading">Today's classroom schedules</h2>
+                <strong id="adminHealthTitle">Analyzing campus timetable integrity…</strong>
+                <span id="adminHealthMeta">Checking schedule overlaps, unassigned courses, and live space usage.</span>
               </div>
-              <a href="schedules.html" class="panel-link-action">All schedules <i class="bi bi-arrow-right"></i></a>
             </div>
-            <div class="dashboard-scroll-body">
-              <div class="today-schedule-list" id="dashboardTodayScheduleList">
-                <div class="dashboard-empty-state">Loading today's schedules…</div>
-              </div>
+            <div class="d-flex align-items-center gap-2">
+              <a href="assignments.html" class="btn btn-outline-primary btn-sm" id="adminHealthSecondaryBtn">Assignments</a>
+              <a href="conflicts.html" class="btn btn-primary btn-sm" id="adminHealthPrimaryBtn"><i class="bi bi-shield-exclamation"></i> Conflict Monitor</a>
             </div>
           </div>
 
-          <!-- Pane 3: Building Utilization -->
-          <div class="dashboard-view-pane" id="pane-utilization" role="tabpanel" aria-labelledby="viewBtnUtilization">
-            <div class="panel-header-row mb-2">
-              <div>
-                <p class="panel-kicker">Space analytics</p>
-                <h2 id="utilizationHeading">Classroom utilization by building</h2>
-              </div>
-              <a href="reports.html" class="panel-link-action">Full report <i class="bi bi-arrow-right"></i></a>
-            </div>
-            <div class="utilization-legend mb-3" aria-label="Utilization legend">
-              <span><i style="background-color: var(--rq-primary)"></i> Occupied</span>
-              <span><i style="background-color: var(--rq-warning)"></i> Reserved</span>
-              <span><i style="background-color: #e2e8f0"></i> Available</span>
-            </div>
-            <div class="dashboard-scroll-body">
-              <div class="utilization-list" id="buildingUtilizationList">
-                <div class="dashboard-empty-state">Loading building utilization…</div>
-              </div>
-            </div>
-          </div>
+          <!-- Core Workspace Grid: Asymmetric 8 / 4 Split -->
+          <div class="row g-4">
+            <!-- Left (Primary Panel - 8 Columns) -->
+            <div class="col-12 col-xl-8">
+              <!-- Hourly Timetable Demand Chart -->
+              <section class="workspace-panel box-corners" aria-labelledby="adminHourlyChartHeading">
+                <div class="workspace-panel-header">
+                  <div>
+                    <h2 class="workspace-panel-title" id="adminHourlyChartHeading">Today's Hourly Room Demand (7 AM – 7 PM)</h2>
+                    <p class="workspace-panel-sub">Scheduled class load vs ad-hoc room reservations per hour</p>
+                  </div>
+                  <div class="d-flex gap-3 small text-muted">
+                    <span><i class="bi bi-square-fill me-1" style="color: var(--rq-primary); font-size: 0.65rem;"></i>Classes</span>
+                    <span><i class="bi bi-square-fill me-1" style="color: #f59e0b; font-size: 0.65rem;"></i>Reservations</span>
+                  </div>
+                </div>
 
-          <!-- Pane 4: Recent Activity -->
-          <div class="dashboard-view-pane" id="pane-activity" role="tabpanel" aria-labelledby="viewBtnActivity">
-            <div class="panel-header-row mb-3">
-              <div>
-                <p class="panel-kicker">Audit trail</p>
-                <h2 id="recentActivityHeading">Recent system activity</h2>
-              </div>
-              <a href="activity-logs.html" class="panel-link-action">View all logs <i class="bi bi-arrow-right"></i></a>
+                <div class="hourly-chart-summary">
+                  <div class="hourly-stat-chip">
+                    <span>Peak Load Hour</span>
+                    <strong id="adminPeakHourStat">—</strong>
+                  </div>
+                  <div class="hourly-stat-chip">
+                    <span>Room-Hours Today</span>
+                    <strong id="adminRoomHoursStat">—</strong>
+                  </div>
+                  <div class="hourly-stat-chip">
+                    <span>Active Faculty</span>
+                    <strong id="adminFacultyChipStat">—</strong>
+                  </div>
+                </div>
+
+                <div class="hourly-chart-grid" id="adminHourlyChartGrid" role="img" aria-label="Hourly classroom load bar chart">
+                  <div class="text-muted small text-center w-100 align-self-center">Calculating today's room load…</div>
+                </div>
+              </section>
+
+              <!-- Tabbed Operations Hub -->
+              <section class="dashboard-views-card box-corners mb-0" style="box-shadow: none;" aria-label="Dashboard views and operations">
+                <div class="dashboard-view-switcher-bar">
+                  <div class="dashboard-view-buttons" role="tablist" aria-label="Dashboard interactive views">
+                    <button type="button" role="tab" aria-selected="true" class="dashboard-view-btn active" data-view-target="schedules" id="viewBtnSchedules">
+                      <i class="bi bi-calendar3"></i>
+                      <span>Today's Schedules</span>
+                      <span class="view-btn-badge" id="tabBadgeSchedules">0</span>
+                    </button>
+                    <button type="button" role="tab" aria-selected="false" class="dashboard-view-btn" data-view-target="utilization" id="viewBtnUtilization">
+                      <i class="bi bi-bar-chart-line"></i>
+                      <span>Utilization</span>
+                      <span class="view-btn-badge" id="tabBadgeBuildings">0</span>
+                    </button>
+                    <button type="button" role="tab" aria-selected="false" class="dashboard-view-btn" data-view-target="activity" id="viewBtnActivity">
+                      <i class="bi bi-clock-history"></i>
+                      <span>Recent Activity</span>
+                      <span class="view-btn-badge" id="tabBadgeActivity">0</span>
+                    </button>
+                  </div>
+                  <div class="dashboard-view-actions">
+                    <span class="availability-legend" id="dashboardAvailabilityWindowLegend"><i></i> Current time range</span>
+                  </div>
+                </div>
+
+                <!-- Pane 1: Today's Schedules -->
+                <div class="dashboard-view-pane active" id="pane-schedules" role="tabpanel" aria-labelledby="viewBtnSchedules">
+                  <div class="panel-header-row mb-3">
+                    <div>
+                      <p class="panel-kicker">Daily timetable</p>
+                      <h2 id="todayScheduleHeading">Today's classroom schedules</h2>
+                    </div>
+                    <a href="schedules.html" class="panel-link-action">All schedules <i class="bi bi-arrow-right"></i></a>
+                  </div>
+                  <div class="dashboard-scroll-body">
+                    <div class="today-schedule-list" id="dashboardTodayScheduleList">
+                      <div class="dashboard-empty-state">Loading today's schedules…</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Pane 2: Building Utilization -->
+                <div class="dashboard-view-pane" id="pane-utilization" role="tabpanel" aria-labelledby="viewBtnUtilization">
+                  <div class="panel-header-row mb-2">
+                    <div>
+                      <p class="panel-kicker">Space analytics</p>
+                      <h2 id="utilizationHeading">Classroom utilization by building</h2>
+                    </div>
+                    <a href="reports.html" class="panel-link-action">Full report <i class="bi bi-arrow-right"></i></a>
+                  </div>
+                  <div class="utilization-legend mb-3" aria-label="Utilization legend">
+                    <span><i style="background-color: var(--rq-primary)"></i> Occupied</span>
+                    <span><i style="background-color: var(--rq-warning)"></i> Reserved</span>
+                    <span><i style="background-color: #e2e8f0"></i> Available</span>
+                  </div>
+                  <div class="dashboard-scroll-body">
+                    <div class="utilization-list" id="buildingUtilizationList">
+                      <div class="dashboard-empty-state">Loading building utilization…</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Pane 3: Recent Activity -->
+                <div class="dashboard-view-pane" id="pane-activity" role="tabpanel" aria-labelledby="viewBtnActivity">
+                  <div class="panel-header-row mb-3">
+                    <div>
+                      <p class="panel-kicker">Audit trail</p>
+                      <h2 id="recentActivityHeading">Recent system activity</h2>
+                    </div>
+                    <a href="activity-logs.html" class="panel-link-action">View all logs <i class="bi bi-arrow-right"></i></a>
+                  </div>
+                  <div class="dashboard-scroll-body">
+                    <div class="activity-feed-list" id="dashboardActivityList">
+                      <div class="dashboard-empty-state">Checking recent system activities…</div>
+                    </div>
+                  </div>
+                </div>
+              </section>
             </div>
-            <div class="dashboard-scroll-body">
-              <div class="activity-feed-list" id="dashboardActivityList">
-                <div class="dashboard-empty-state">Checking recent system activities…</div>
-              </div>
+
+            <!-- Right (Secondary Panel - 4 Columns) -->
+            <div class="col-12 col-xl-4">
+              <!-- Live Space Distribution SVG Donut Card -->
+              <section class="workspace-panel box-corners" aria-labelledby="adminPulseHeading">
+                <div class="workspace-panel-header">
+                  <div>
+                    <h2 class="workspace-panel-title" id="adminPulseHeading">Space Distribution</h2>
+                    <p class="workspace-panel-sub">Real-time campus utilization</p>
+                  </div>
+                  <span class="status-pill status-pill-available" id="dashboardHeroUtilizationText">Loading…</span>
+                </div>
+
+                <div class="donut-layout mb-3">
+                  <div class="donut-svg-wrap">
+                    <svg viewBox="0 0 36 36" aria-hidden="true">
+                      <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#e2e8f0" stroke-width="3.6"></circle>
+                      <circle id="adminDonutAvail" cx="18" cy="18" r="15.9155" fill="none" stroke="#007fff" stroke-width="3.6" stroke-dasharray="0 100" stroke-dashoffset="0"></circle>
+                      <circle id="adminDonutOcc" cx="18" cy="18" r="15.9155" fill="none" stroke="#64748b" stroke-width="3.6" stroke-dasharray="0 100" stroke-dashoffset="0"></circle>
+                      <circle id="adminDonutRes" cx="18" cy="18" r="15.9155" fill="none" stroke="#f59e0b" stroke-width="3.6" stroke-dasharray="0 100" stroke-dashoffset="0"></circle>
+                    </svg>
+                    <div class="donut-center-label">
+                      <strong id="adminDonutPct">—%</strong>
+                      <span>Open</span>
+                    </div>
+                  </div>
+                  <div class="donut-legend-list">
+                    <div class="donut-legend-row">
+                      <span class="donut-legend-key"><i class="donut-legend-dot" style="background-color: var(--rq-primary);"></i> Available</span>
+                      <span class="donut-legend-val" id="adminDonutOpenCount">—</span>
+                    </div>
+                    <div class="donut-legend-row">
+                      <span class="donut-legend-key"><i class="donut-legend-dot" style="background-color: #64748b;"></i> Occupied</span>
+                      <span class="donut-legend-val" id="adminDonutOccCount">—</span>
+                    </div>
+                    <div class="donut-legend-row">
+                      <span class="donut-legend-key"><i class="donut-legend-dot" style="background-color: #f59e0b;"></i> Reserved</span>
+                      <span class="donut-legend-val" id="adminDonutResCount">—</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="row g-2 mb-2">
+                  <div class="col-4">
+                    <div class="blue-stat-mini-box">
+                      <span>Scheduled</span>
+                      <strong id="dashboardTotalClasses">—</strong>
+                    </div>
+                  </div>
+                  <div class="col-4">
+                    <div class="blue-stat-mini-box">
+                      <span>Assigned</span>
+                      <strong id="dashboardAssignedRooms">—</strong>
+                    </div>
+                  </div>
+                  <div class="col-4">
+                    <div class="blue-stat-mini-box">
+                      <span>Faculty</span>
+                      <strong id="dashboardTotalFaculty">—</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="blue-summary-strip">
+                  <span>Buildings: <strong id="dashboardHeroBuildings">—</strong></span>
+                  <span>Rooms: <strong id="dashboardHeroRooms">—</strong></span>
+                </div>
+              </section>
+
+              <!-- Quick Management Shortcuts -->
+              <section class="workspace-panel box-corners mb-0" aria-labelledby="quickMgmtHeading">
+                <div class="workspace-panel-header">
+                  <div>
+                    <h2 class="workspace-panel-title" id="quickMgmtHeading">Quick Actions</h2>
+                    <p class="workspace-panel-sub">Direct administrative workflows</p>
+                  </div>
+                </div>
+
+                <div class="d-flex flex-column gap-2">
+                  <a href="assignments.html#faculty" class="quick-action-tile">
+                    <span class="quick-action-icon"><i class="bi bi-person-plus"></i></span>
+                    <div>
+                      <strong>Faculty Assignment</strong>
+                      <span>Assign instructors &amp; teaching loads</span>
+                    </div>
+                  </a>
+                  <a href="assignments.html#rooms" class="quick-action-tile">
+                    <span class="quick-action-icon"><i class="bi bi-door-closed"></i></span>
+                    <div>
+                      <strong>Room Allocation</strong>
+                      <span>Assign spaces &amp; reservations</span>
+                    </div>
+                  </a>
+                  <a href="conflicts.html" class="quick-action-tile">
+                    <span class="quick-action-icon"><i class="bi bi-shield-exclamation"></i></span>
+                    <div>
+                      <strong>Conflict Monitor</strong>
+                      <span>Inspect &amp; resolve overlaps</span>
+                    </div>
+                  </a>
+                  <a href="reports.html" class="quick-action-tile">
+                    <span class="quick-action-icon"><i class="bi bi-file-earmark-bar-graph"></i></span>
+                    <div>
+                      <strong>Reports &amp; Export</strong>
+                      <span>Utilization &amp; teaching loads</span>
+                    </div>
+                  </a>
+                </div>
+              </section>
             </div>
           </div>
-        </section>
+        </div>
+
+        <!-- Minimalist Anchored Footer -->
+        <footer class="workspace-footer">
+          <div>RoomQ Classroom Management System · © 2026 NORSU-MC 1</div>
+          <div class="workspace-footer-links">
+            <a href="../user/classrooms.html#guide">Booking Policy</a>
+            <a href="activity-logs.html">Audit Trail</a>
+            <a href="conflicts.html" class="system-status-link"><span class="status-dot-live" aria-hidden="true"></span> System Operational</a>
+          </div>
+        </footer>
       </main>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

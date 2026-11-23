@@ -6,7 +6,7 @@
     <title>Browse Buildings | RoomQ</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="../shared/css/roomq.css" />
@@ -56,85 +56,125 @@
       </aside>
 
       <main class="main-content">
-        <header class="topbar">
-          <div class="topbar-title">
+        <header class="workspace-header">
+          <div class="workspace-header-left">
             <button class="menu-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebar" aria-controls="appSidebar" aria-label="Open menu"><i class="bi bi-list"></i></button>
-            <div>
-              <p class="eyebrow">NORSU-MC 1 · <span id="todayDate"></span></p>
-              <h1>Campus Buildings</h1>
+            <div class="workspace-breadcrumb-wrap">
+              <nav class="workspace-breadcrumb" aria-label="Breadcrumb">
+                <a href="dashboard.html">User Portal</a>
+                <span class="workspace-breadcrumb-sep">/</span>
+                <span>Buildings</span>
+                <span class="workspace-breadcrumb-sep d-none d-sm-inline">·</span>
+                <span class="d-none d-sm-inline" id="todayDate"></span>
+              </nav>
+              <span class="workspace-header-title">Campus Buildings Directory</span>
             </div>
           </div>
 
-          <div class="topbar-actions">
-            <label class="search-box d-none d-lg-block" aria-label="Search buildings">
+          <div class="workspace-header-right">
+            <label class="workspace-search d-none d-md-block" aria-label="Search buildings">
               <i class="bi bi-search"></i>
               <input id="buildingSearchInput" class="form-control" type="search" placeholder="Search buildings…" aria-label="Search campus buildings" />
             </label>
-            <a href="classrooms.html" class="btn btn-primary btn-sm d-none d-sm-inline-flex align-items-center gap-1">
-              <i class="bi bi-map"></i> View Floor Plans
-            </a>
-            <div class="user-pill d-none d-sm-flex" id="topbarUserPill">
-              <div class="user-avatar" id="topbarAvatar">GU</div>
-              <div>
-                <strong id="topbarUsername">Guest User</strong>
-                <span id="topbarRole">User Portal</span>
+
+            <div class="dropdown">
+              <button class="workspace-icon-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications">
+                <i class="bi bi-bell"></i>
+                <span class="notif-dot" aria-hidden="true"></span>
+              </button>
+              <div class="dropdown-menu dropdown-menu-end workspace-dropdown-menu">
+                <p class="px-2 py-1 mb-1 small fw-bold text-dark">Facility Status</p>
+                <div class="px-2 py-1 small text-muted" id="buildingsUtilizationSummary">Checking campus building availability…</div>
+              </div>
+            </div>
+
+            <div class="dropdown">
+              <button class="workspace-profile-trigger" type="button" id="topbarUserPill" data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="user-avatar" id="topbarAvatar">GU</span>
+                <span class="workspace-profile-meta d-none d-sm-flex">
+                  <strong id="topbarUsername">Guest User</strong>
+                  <span id="topbarRole">User Portal</span>
+                </span>
+                <i class="bi bi-chevron-down small text-muted ms-1 d-none d-sm-inline"></i>
+              </button>
+              <div class="dropdown-menu dropdown-menu-end workspace-dropdown-menu">
+                <a class="dropdown-item" href="dashboard.html"><i class="bi bi-grid-1x2 me-2"></i>Dashboard</a>
+                <a class="dropdown-item" href="classrooms.html"><i class="bi bi-door-open me-2"></i>Classrooms</a>
+                <a class="dropdown-item" href="../admin/dashboard.html" id="headerPortalSwitch" hidden></a>
+                <hr class="dropdown-divider my-1" />
+                <a class="dropdown-item" href="login.html" id="headerAccountAction"><i class="bi bi-box-arrow-in-right me-2"></i>Sign in</a>
               </div>
             </div>
           </div>
         </header>
 
-        <section class="campus-hero" aria-labelledby="buildingsHeroHeading">
-          <div class="campus-hero-copy">
-            <p class="campus-kicker"><span></span> Facility Directory · NORSU-MC 1</p>
-            <h2 id="buildingsHeroHeading">Explore Campus Buildings &amp; Facilities</h2>
-            <p class="campus-description">Inspect all 8 university facilities, view mapped floor counts and classrooms, and check live availability to locate open spaces.</p>
-            <div class="campus-actions">
-              <a class="btn btn-light" href="classrooms.html"><i class="bi bi-door-open"></i> Browse all classrooms</a>
-              <a class="btn btn-outline-light" href="dashboard.html"><i class="bi bi-bar-chart-line"></i> View campus statistics</a>
-            </div>
-          </div>
-
-          <aside class="hero-pulse-card" aria-label="Building directory overview">
-            <div class="hero-pulse-header">
-              <span class="hero-pulse-live"><span class="hero-pulse-dot"></span> Campus Status</span>
-              <span class="hero-pulse-window" id="buildingsLiveWindow">Current hour</span>
-            </div>
-            <div class="hero-pulse-metrics">
-              <div class="hero-pulse-metric">
-                <span>Total Buildings</span>
-                <strong id="buildingsTotalCount">8</strong>
-              </div>
-              <div class="hero-pulse-metric">
-                <span>Mapped Classrooms</span>
-                <strong id="buildingsTotalClassrooms">—</strong>
-              </div>
-            </div>
-            <div class="hero-pulse-bar-label">
-              <span>Overall Availability</span>
-              <span id="buildingsUtilizationSummary">Loading…</span>
-            </div>
-            <div class="hero-pulse-bar" role="img" aria-label="Campus availability progress bar">
-              <div class="hero-pulse-bar-available" id="buildingsBarAvailable" style="width: 0%"></div>
-              <div class="hero-pulse-bar-occupied" id="buildingsBarOccupied" style="width: 0%"></div>
-              <div class="hero-pulse-bar-reserved" id="buildingsBarReserved" style="width: 0%"></div>
-            </div>
-          </aside>
-        </section>
-
-        <!-- Building Directory Section -->
-        <section class="panel" aria-labelledby="directoryHeading">
-          <div class="panel-header-row mb-3">
+        <div class="workspace-body">
+          <div class="workspace-action-bar">
             <div>
-              <p class="panel-kicker">Facility directory</p>
-              <h2 id="directoryHeading">All Campus Buildings</h2>
+              <h1 class="workspace-page-title">Campus Buildings &amp; Facilities</h1>
+              <p class="workspace-page-subtitle">Inspect university buildings, mapped floors, and live availability for <span id="buildingsLiveWindow">the current hour</span>.</p>
             </div>
-            <span class="availability-legend" id="buildingsWindowLegend"><i></i> Current time range</span>
+            <div class="workspace-action-controls">
+              <a href="dashboard.html" class="btn btn-outline-primary btn-sm"><i class="bi bi-bar-chart-line"></i> Statistics</a>
+              <a href="classrooms.html" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Book a Room</a>
+            </div>
           </div>
 
-          <div class="building-directory-grid" id="buildingsDirectoryGrid">
-            <div class="dashboard-empty-state">Loading campus buildings…</div>
+          <section class="dashboard-kpi-grid kpi-grid-3 mb-4" aria-label="Facility overview metrics">
+            <div class="kpi-card">
+              <div class="kpi-card-body">
+                <p class="kpi-label">Total Buildings</p>
+                <strong class="kpi-value" id="buildingsTotalCount">8</strong>
+                <span class="kpi-meta">NORSU Main Campus 1</span>
+              </div>
+              <div class="kpi-icon-well"><i class="bi bi-buildings"></i></div>
+            </div>
+
+            <div class="kpi-card kpi-primary">
+              <div class="kpi-card-body">
+                <p class="kpi-label">Mapped Classrooms</p>
+                <strong class="kpi-value" id="buildingsTotalClassrooms">—</strong>
+                <span class="kpi-meta">Interactive floor layouts</span>
+              </div>
+              <div class="kpi-icon-well"><i class="bi bi-door-open"></i></div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-card-body">
+                <p class="kpi-label">Campus Availability Breakdown</p>
+                <div class="hero-pulse-bar bg-light border mt-2 mb-2" style="height: 10px;" role="img" aria-label="Campus availability progress bar">
+                  <div class="hero-pulse-bar-available" id="buildingsBarAvailable" style="width: 0%; background-color: var(--rq-primary);"></div>
+                  <div class="hero-pulse-bar-occupied" id="buildingsBarOccupied" style="width: 0%; background-color: #64748b;"></div>
+                  <div class="hero-pulse-bar-reserved" id="buildingsBarReserved" style="width: 0%; background-color: var(--rq-warning);"></div>
+                </div>
+                <span class="kpi-meta">Live occupancy distribution</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="workspace-panel mb-0" aria-labelledby="directoryHeading">
+            <div class="workspace-panel-header">
+              <div>
+                <h2 class="workspace-panel-title" id="directoryHeading">All Campus Buildings</h2>
+                <p class="workspace-panel-sub">Select a building to inspect mapped floors and reserve classrooms</p>
+              </div>
+              <span class="availability-legend" id="buildingsWindowLegend"><i></i> Current time range</span>
+            </div>
+
+            <div class="building-directory-grid" id="buildingsDirectoryGrid">
+              <div class="dashboard-empty-state">Loading campus buildings…</div>
+            </div>
+          </section>
+        </div>
+
+        <footer class="workspace-footer">
+          <div>RoomQ Classroom Management System · © 2026 NORSU-MC 1</div>
+          <div class="workspace-footer-links">
+            <a href="classrooms.html#guide">Booking Policy</a>
+            <a href="classrooms.html#guide">Help &amp; Support</a>
+            <a href="dashboard.html" class="system-status-link"><span class="status-dot-live" aria-hidden="true"></span> System Operational</a>
           </div>
-        </section>
+        </footer>
       </main>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

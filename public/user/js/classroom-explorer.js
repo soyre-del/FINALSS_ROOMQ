@@ -185,6 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const directoryCards = document.getElementById('classroomsDirectoryCards');
   const directoryEmpty = document.getElementById('classroomsDirectoryEmpty');
+  const globalWorkspaceSearch = document.getElementById('globalWorkspaceSearch');
   const statusFilterButtons = [...document.querySelectorAll('#classroomsStatusFilters [data-status-filter]')];
   let activeDirectoryStatus = 'all';
 
@@ -205,10 +206,23 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderClassroomDirectory() {
     if (!directoryCards) return;
 
+    const searchQuery = globalWorkspaceSearch ? globalWorkspaceSearch.value.trim().toLowerCase() : '';
+
     const filtered = availabilityRecords
       .filter((room) => {
         if (activeDirectoryStatus !== 'all' && room.status !== activeDirectoryStatus) {
           return false;
+        }
+        if (searchQuery) {
+          const haystack = [
+            formatRoomTitle(room),
+            room.buildingName || '',
+            room.floorLabel || '',
+            ...(Array.isArray(room.facilities) ? room.facilities : [])
+          ]
+            .join(' ')
+            .toLowerCase();
+          if (!haystack.includes(searchQuery)) return false;
         }
         return true;
       })
@@ -963,5 +977,14 @@ document.addEventListener('DOMContentLoaded', () => {
     activeDirectoryStatus = statusParam;
     statusFilterButtons.forEach((b) => b.classList.toggle('active', b.dataset.statusFilter === statusParam));
     renderClassroomDirectory();
+  }
+
+  const qParam = query.get('q');
+  if (globalWorkspaceSearch) {
+    if (qParam) {
+      globalWorkspaceSearch.value = qParam;
+      renderClassroomDirectory();
+    }
+    globalWorkspaceSearch.addEventListener('input', renderClassroomDirectory);
   }
 });

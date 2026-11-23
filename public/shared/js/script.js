@@ -103,6 +103,10 @@ async function syncSessionAndNavigation() {
   // Update Account Nav Link (Sign in / Sign out)
   const accountNavLinks = document.querySelectorAll('#sidebarAccountLink');
   accountNavLinks.forEach((link) => {
+    const currentPath = window.location.pathname + window.location.search + window.location.hash;
+    const loginBase = isUserPage ? 'login.html' : '../user/login.html';
+    const loginUrl = `${loginBase}?returnTo=${encodeURIComponent(currentPath)}`;
+
     if (currentUser) {
       link.innerHTML = '<span class="nav-icon"><i class="bi bi-box-arrow-right"></i></span>Sign out';
       link.href = '#';
@@ -121,13 +125,69 @@ async function syncSessionAndNavigation() {
         window.location.assign('/user/login.html');
       });
     } else {
-      const currentPath = window.location.pathname + window.location.search + window.location.hash;
-      const loginBase = isUserPage ? 'login.html' : '../user/login.html';
-      const loginUrl = `${loginBase}?returnTo=${encodeURIComponent(currentPath)}`;
       link.innerHTML = '<span class="nav-icon"><i class="bi bi-box-arrow-in-right"></i></span>Sign in';
       link.href = loginUrl;
     }
   });
+
+  // Update Header Profile Dropdown Actions
+  const headerAccountAction = document.getElementById('headerAccountAction');
+  if (headerAccountAction) {
+    if (currentUser) {
+      headerAccountAction.innerHTML = '<i class="bi bi-box-arrow-right me-2"></i>Sign out';
+      headerAccountAction.href = '#';
+      headerAccountAction.addEventListener('click', async (event) => {
+        event.preventDefault();
+        try {
+          await fetch('/api/logout', {
+            method: 'POST',
+            body: '{}',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin'
+          });
+        } catch {
+          // ignore
+        }
+        window.location.assign('/user/login.html');
+      });
+    } else {
+      const currentPath = window.location.pathname + window.location.search + window.location.hash;
+      const loginBase = isUserPage ? 'login.html' : '../user/login.html';
+      headerAccountAction.innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>Sign in';
+      headerAccountAction.href = `${loginBase}?returnTo=${encodeURIComponent(currentPath)}`;
+    }
+  }
+
+  const headerPortalSwitch = document.getElementById('headerPortalSwitch');
+  if (headerPortalSwitch) {
+    if (currentUser && currentUser.role === 'admin') {
+      headerPortalSwitch.hidden = false;
+      if (isAdminPage) {
+        headerPortalSwitch.innerHTML = '<i class="bi bi-eye me-2"></i>Switch to User Portal';
+        headerPortalSwitch.href = '../user/dashboard.html';
+      } else {
+        headerPortalSwitch.innerHTML = '<i class="bi bi-shield-lock me-2"></i>Admin Portal';
+        headerPortalSwitch.href = '../admin/dashboard.html';
+      }
+    } else {
+      headerPortalSwitch.hidden = true;
+    }
+  }
+
+  // Global search bar Enter navigation fallback
+  const globalSearch = document.getElementById('globalWorkspaceSearch');
+  if (globalSearch) {
+    globalSearch.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && globalSearch.value.trim()) {
+        if (!window.location.pathname.endsWith('dashboard.html') &&
+            !window.location.pathname.endsWith('buildings.html') &&
+            !window.location.pathname.endsWith('classrooms.html')) {
+          e.preventDefault();
+          window.location.assign(`classrooms.html?q=${encodeURIComponent(globalSearch.value.trim())}`);
+        }
+      }
+    });
+  }
 
   // User-specific elements:
   const adminPortalNavGroup = document.getElementById('adminPortalNavGroup');

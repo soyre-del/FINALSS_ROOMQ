@@ -6,13 +6,13 @@
     <title>User Dashboard | RoomQ</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="../shared/css/roomq.css" />
   </head>
   <body>
-    <div class="app-shell explorer-shell">
+    <div class="app-shell">
       <aside class="sidebar offcanvas-lg offcanvas-start" id="appSidebar" tabindex="-1" aria-label="Sidebar">
         <div class="sidebar-inner">
           <div class="brand-block">
@@ -56,173 +56,446 @@
       </aside>
 
       <main class="main-content">
-        <header class="topbar">
-          <div class="topbar-title">
-            <button class="menu-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebar" aria-controls="appSidebar" aria-label="Open menu"><i class="bi bi-list"></i></button>
-            <div>
-              <p class="eyebrow">NORSU-MC 1 · <span id="todayDate"></span></p>
-              <h1>User Dashboard</h1>
+        <!-- Sticky 64px Pure White Header -->
+        <header class="workspace-header">
+          <div class="workspace-header-left">
+            <button class="menu-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebar" aria-controls="appSidebar" aria-label="Open navigation menu"><i class="bi bi-list"></i></button>
+            <div class="workspace-breadcrumb-wrap">
+              <nav class="workspace-breadcrumb" aria-label="Breadcrumb">
+                <span>User Portal</span>
+                <span class="workspace-breadcrumb-sep">/</span>
+                <span>Dashboard</span>
+                <span class="workspace-breadcrumb-sep d-none d-sm-inline">·</span>
+                <span class="d-none d-sm-inline" id="todayDate"></span>
+              </nav>
+              <span class="workspace-header-title">Campus Space Overview</span>
             </div>
           </div>
 
-          <div class="topbar-actions">
-            <label class="search-box d-none d-lg-block" aria-label="Search open rooms">
+          <div class="workspace-header-right">
+            <label class="workspace-search d-none d-md-block" aria-label="Search rooms, buildings, or equipment">
               <i class="bi bi-search"></i>
-              <input id="userDashboardSearch" class="form-control" type="search" placeholder="Search rooms, buildings…" aria-label="Search rooms or buildings" />
+              <input id="userDashboardSearch" class="form-control" type="search" placeholder="Search rooms or equipment… ( / )" autocomplete="off" />
             </label>
-            <a href="classrooms.html" class="btn btn-primary btn-sm d-none d-sm-inline-flex align-items-center gap-1">
-              <i class="bi bi-map"></i> Floor Plans
-            </a>
-            <div class="user-pill d-none d-sm-flex" id="topbarUserPill">
-              <div class="user-avatar" id="topbarAvatar">GU</div>
-              <div>
-                <strong id="topbarUsername">Guest User</strong>
-                <span id="topbarRole">User Portal</span>
+
+            <button class="workspace-icon-btn" type="button" id="refreshDashboardBtn" title="Refresh live availability" aria-label="Refresh live availability">
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
+
+            <div class="dropdown">
+              <button class="workspace-icon-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications">
+                <i class="bi bi-bell"></i>
+                <span class="notif-dot" aria-hidden="true"></span>
+              </button>
+              <div class="dropdown-menu dropdown-menu-end workspace-dropdown-menu">
+                <p class="px-2 py-1 mb-1 small fw-bold text-dark">Live Campus Updates</p>
+                <div class="px-2 py-1 small text-muted" id="headerNotifSummary" aria-live="polite">Loading live classroom availability…</div>
+                <hr class="dropdown-divider my-1" />
+                <a class="dropdown-item" href="classrooms.html"><i class="bi bi-map me-2"></i>Open Interactive Floor Plans</a>
+              </div>
+            </div>
+
+            <div class="dropdown">
+              <button class="workspace-profile-trigger" type="button" id="topbarUserPill" data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="user-avatar" id="topbarAvatar">GU</span>
+                <span class="workspace-profile-meta d-none d-sm-flex">
+                  <strong id="topbarUsername">Guest User</strong>
+                  <span id="topbarRole">User Portal</span>
+                </span>
+                <i class="bi bi-chevron-down small text-muted ms-1 d-none d-sm-inline"></i>
+              </button>
+              <div class="dropdown-menu dropdown-menu-end workspace-dropdown-menu">
+                <a class="dropdown-item" href="classrooms.html"><i class="bi bi-door-open me-2"></i>Browse Classrooms</a>
+                <a class="dropdown-item" href="buildings.html"><i class="bi bi-buildings me-2"></i>Campus Buildings</a>
+                <a class="dropdown-item" href="../admin/dashboard.html" id="headerPortalSwitch" hidden></a>
+                <hr class="dropdown-divider my-1" />
+                <a class="dropdown-item" href="login.html" id="headerAccountAction"><i class="bi bi-box-arrow-in-right me-2"></i>Sign in</a>
               </div>
             </div>
           </div>
         </header>
 
-        <section class="campus-hero" aria-labelledby="userDashboardHeading">
-          <div class="campus-hero-copy">
-            <p class="campus-kicker"><span></span> Live Space Analytics · NORSU-MC 1</p>
-            <h2 id="userDashboardHeading">Campus Classroom &amp; Space Statistics</h2>
-            <p class="campus-description">Real-time occupancy metrics, available classroom capacity, and live space utilization across all 8 campus facilities.</p>
-            <div class="campus-actions">
-              <a class="btn btn-light" href="classrooms.html"><i class="bi bi-door-open"></i> View floor plans</a>
-              <a class="btn btn-outline-light" href="buildings.html"><i class="bi bi-buildings"></i> Browse buildings</a>
-            </div>
-          </div>
-
-          <aside class="hero-pulse-card" aria-label="Live space availability summary">
-            <div class="hero-pulse-header">
-              <span class="hero-pulse-live"><span class="hero-pulse-dot"></span> Open Right Now</span>
-              <span class="hero-pulse-window" id="userLiveWindow">Current hour</span>
-            </div>
-            <div class="hero-pulse-metrics">
-              <div class="hero-pulse-metric">
-                <span>Available Rooms</span>
-                <strong id="userHeroAvailable">—</strong>
-              </div>
-              <div class="hero-pulse-metric">
-                <span>Mapped Rooms</span>
-                <strong id="userHeroTotalRooms">—</strong>
-              </div>
-            </div>
-            <div class="hero-pulse-bar-label">
-              <span>Campus Space Status</span>
-              <span id="userHeroSummaryText">Loading…</span>
-            </div>
-            <div class="hero-pulse-bar" role="img" aria-label="Campus room status bar">
-              <div class="hero-pulse-bar-available" id="userHeroBarAvailable" style="width: 0%"></div>
-              <div class="hero-pulse-bar-occupied" id="userHeroBarOccupied" style="width: 0%"></div>
-              <div class="hero-pulse-bar-reserved" id="userHeroBarReserved" style="width: 0%"></div>
-            </div>
-          </aside>
-        </section>
-
-        <!-- KPI Grid: 4 Core Campus Metrics -->
-        <section class="dashboard-kpi-grid" aria-label="Campus live availability summary">
-          <a href="classrooms.html?status=available" class="kpi-card kpi-success" data-quick-status="available">
-            <div class="kpi-card-body">
-              <p class="kpi-label">Available Right Now</p>
-              <strong class="kpi-value" id="userStatAvailable">—</strong>
-              <span class="kpi-meta" id="userStatAvailableMeta">Open spaces ready to reserve</span>
-            </div>
-            <div class="kpi-icon-well"><i class="bi bi-check2-circle"></i></div>
-          </a>
-
-          <a href="classrooms.html?status=occupied" class="kpi-card kpi-primary" data-quick-status="occupied">
-            <div class="kpi-card-body">
-              <p class="kpi-label">Occupied in Class</p>
-              <strong class="kpi-value" id="userStatOccupied">—</strong>
-              <span class="kpi-meta">Currently hosting active classes</span>
-            </div>
-            <div class="kpi-icon-well"><i class="bi bi-book"></i></div>
-          </a>
-
-          <a href="classrooms.html?status=reserved" class="kpi-card kpi-warning" data-quick-status="reserved">
-            <div class="kpi-card-body">
-              <p class="kpi-label">Reserved Spaces</p>
-              <strong class="kpi-value" id="userStatReserved">—</strong>
-              <span class="kpi-meta">Booked for meetings or study</span>
-            </div>
-            <div class="kpi-icon-well"><i class="bi bi-bookmark-check"></i></div>
-          </a>
-
-          <a href="buildings.html" class="kpi-card">
-            <div class="kpi-card-body">
-              <p class="kpi-label">Campus Utilization</p>
-              <strong class="kpi-value" id="userStatUtilization">—</strong>
-              <span class="kpi-meta">Across 8 campus facilities</span>
-            </div>
-            <div class="kpi-icon-well"><i class="bi bi-pie-chart"></i></div>
-          </a>
-        </section>
-
-        <!-- Campus Space & Facility Utilization Statistics Panel -->
-        <section class="panel statistics-panel" aria-labelledby="userStatsHeading">
-          <div class="panel-header-row mb-3">
+        <!-- Main Content Viewport -->
+        <div class="workspace-body">
+          <!-- Top Action Bar (Blue Command Box) -->
+          <div class="workspace-action-bar box-corners">
             <div>
-              <p class="panel-kicker">Live space analytics</p>
-              <h2 id="userStatsHeading">Classroom Occupancy &amp; Utilization by Building</h2>
-            </div>
-            <div class="d-flex align-items-center gap-3">
-              <div class="utilization-legend d-none d-md-flex" aria-label="Utilization breakdown legend">
-                <span><i style="background-color: var(--rq-primary)"></i> Occupied</span>
-                <span><i style="background-color: var(--rq-warning)"></i> Reserved</span>
-                <span><i style="background-color: #cbd5e1"></i> Available</span>
+              <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                <h1 class="workspace-page-title mb-0">Classroom Dashboard &amp; Availability</h1>
+                <span class="live-pulse-badge d-none d-sm-inline-flex"><span class="live-pulse-dot"></span> Live Sync</span>
               </div>
-              <span class="availability-legend" id="userWindowLegend"><i></i> Current time range</span>
+              <p class="workspace-page-subtitle mb-0">
+                Room status &amp; hourly demand for <strong class="text-dark" id="userLiveWindow">the current hour</strong>
+                <span class="text-muted ms-1" id="userLastSynced"></span>
+              </p>
+            </div>
+            <div class="workspace-action-controls">
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="refreshDashboardBtn" title="Refresh Live Data" aria-label="Refresh Data">
+                <i class="bi bi-arrow-clockwise"></i>
+              </button>
+              <div class="time-window-pills" role="group" aria-label="Quick time window selector">
+                <button type="button" class="time-window-pill active" data-window-preset="now">Live Now</button>
+                <button type="button" class="time-window-pill" data-window-preset="plus1">+1 Hour</button>
+                <button type="button" class="time-window-pill" data-window-preset="plus2">+2 Hours</button>
+              </div>
+              <select id="userDashboardBuildingFilter" class="form-select form-select-sm" style="width: auto; min-width: 185px;" aria-label="Filter dashboard by building">
+                <option value="">All Campus Buildings</option>
+              </select>
+              <a href="classrooms.html" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Book a Room</a>
             </div>
           </div>
 
-          <!-- Statistical Breakdown Table -->
-          <div class="responsive-table-wrap mb-4">
-            <table class="table table-hover align-middle roomq-table">
-              <thead>
-                <tr>
-                  <th>Building</th>
-                  <th>Floors</th>
-                  <th>Total Classrooms</th>
-                  <th>Available</th>
-                  <th>Occupied</th>
-                  <th>Reserved</th>
-                  <th style="min-width: 170px">Utilization Rate</th>
-                  <th style="width: 110px">Floor Plan</th>
-                </tr>
-              </thead>
-              <tbody id="userBuildingStatsTableBody">
-                <tr><td colspan="8" class="text-center py-4 text-muted">Calculating live facility statistics…</td></tr>
-              </tbody>
-            </table>
+          <!-- Active Preview Notice (shown when inspecting a future hour slot) -->
+          <div class="preview-window-banner box-corners" id="previewWindowBanner" hidden>
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-clock-history text-primary"></i>
+              <span class="small">Previewing availability for <strong id="previewWindowText">—</strong></span>
+            </div>
+            <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2" id="resetToLiveNowBtn" style="font-size: 0.76rem;">
+              Return to Live Now
+            </button>
           </div>
 
-          <!-- Statistical Insights Cards -->
-          <div class="row g-3">
-            <div class="col-md-4">
-              <div class="p-3 bg-light rounded-3 border">
-                <p class="small text-muted mb-1 text-uppercase fw-bold">Campus Capacity</p>
-                <h4 class="h5 mb-1" id="insightTotalRooms">47 Total Classrooms</h4>
-                <span class="small text-muted" id="insightTotalRoomsMeta">Across 8 buildings and 18 mapped floors</span>
+          <!-- Premium Summary KPI Row: 4 Equal-Width Stat Cards with Box Corners -->
+          <section class="dashboard-kpi-grid" aria-label="Campus live availability summary">
+            <button type="button" class="kpi-card kpi-card-premium kpi-interactive box-corners text-start" data-kpi-status="all" aria-pressed="true">
+              <div class="kpi-card-top">
+                <span class="kpi-label mb-0">Total Rooms</span>
+                <span class="kpi-trend-pill kpi-trend-neutral" id="userTrendFloors">— buildings</span>
+              </div>
+              <div class="d-flex align-items-end justify-content-between w-100">
+                <div>
+                  <strong class="kpi-value" id="userHeroTotalRooms">—</strong>
+                  <span class="kpi-meta" id="insightTotalRoomsMeta">Mapped campus classrooms</span>
+                </div>
+                <div class="kpi-icon-well"><i class="bi bi-buildings"></i></div>
+              </div>
+              <div class="kpi-mini-bar"><span style="width: 100%; background-color: #cbd5e1;"></span></div>
+            </button>
+
+            <button type="button" class="kpi-card kpi-card-premium kpi-primary kpi-interactive box-corners text-start" data-kpi-status="available" aria-pressed="false">
+              <div class="kpi-card-top">
+                <span class="kpi-label mb-0">Available Now</span>
+                <span class="kpi-trend-pill kpi-trend-azure" id="userTrendAvailPct">Live · —%</span>
+              </div>
+              <div class="d-flex align-items-end justify-content-between w-100">
+                <div>
+                  <strong class="kpi-value" id="userStatAvailable">—</strong>
+                  <span class="kpi-meta" id="userStatAvailableMeta">Open spaces ready to reserve</span>
+                </div>
+                <div class="kpi-icon-well"><i class="bi bi-check2-circle"></i></div>
+              </div>
+              <div class="kpi-mini-bar"><span id="userMiniBarAvail" style="width: 0%"></span></div>
+            </button>
+
+            <button type="button" class="kpi-card kpi-card-premium kpi-interactive box-corners text-start" data-kpi-status="occupied" aria-pressed="false">
+              <div class="kpi-card-top">
+                <span class="kpi-label mb-0">Occupied in Class</span>
+                <span class="kpi-trend-pill kpi-trend-neutral" id="userTrendOccPct">In session</span>
+              </div>
+              <div class="d-flex align-items-end justify-content-between w-100">
+                <div>
+                  <strong class="kpi-value" id="userStatOccupied">—</strong>
+                  <span class="kpi-meta">Currently hosting active classes</span>
+                </div>
+                <div class="kpi-icon-well"><i class="bi bi-book"></i></div>
+              </div>
+              <div class="kpi-mini-bar"><span id="userMiniBarOcc" style="width: 0%; background-color: #64748b;"></span></div>
+            </button>
+
+            <button type="button" class="kpi-card kpi-card-premium kpi-warning kpi-interactive box-corners box-corners-warning text-start" data-kpi-status="reserved" aria-pressed="false">
+              <div class="kpi-card-top">
+                <span class="kpi-label mb-0">Active Bookings</span>
+                <span class="kpi-trend-pill kpi-trend-warning" id="userTrendResCount">Active slots</span>
+              </div>
+              <div class="d-flex align-items-end justify-content-between w-100">
+                <div>
+                  <strong class="kpi-value" id="userStatReserved">—</strong>
+                  <span class="kpi-meta">Reserved for meetings or study</span>
+                </div>
+                <div class="kpi-icon-well"><i class="bi bi-bookmark-check"></i></div>
+              </div>
+              <div class="kpi-mini-bar"><span id="userMiniBarRes" style="width: 0%; background-color: var(--rq-warning);"></span></div>
+            </button>
+          </section>
+
+          <!-- Instant Room Recommendation Strip -->
+          <div class="quick-finder-strip box-corners" id="userQuickFinderStrip">
+            <div class="quick-finder-copy">
+              <span class="quick-finder-icon"><i class="bi bi-lightning-charge"></i></span>
+              <div>
+                <strong id="userQuickFinderTitle">Finding the best available classroom right now…</strong>
+                <span id="userQuickFinderMeta">Analyzing live campus schedules and uninterrupted open windows.</span>
               </div>
             </div>
-            <div class="col-md-4">
-              <div class="p-3 bg-light rounded-3 border">
-                <p class="small text-muted mb-1 text-uppercase fw-bold">Highest Availability</p>
-                <h4 class="h5 mb-1 text-success" id="insightTopBuilding">—</h4>
-                <span class="small text-muted" id="insightTopBuildingMeta">Calculating best building…</span>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="p-3 bg-light rounded-3 border">
-                <p class="small text-muted mb-1 text-uppercase fw-bold">Current Utilization Index</p>
-                <h4 class="h5 mb-1 text-primary" id="insightUtilizationRate">—</h4>
-                <span class="small text-muted" id="insightUtilizationMeta">Real-time room occupancy index</span>
-              </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <a href="classrooms.html" class="btn btn-outline-primary btn-sm" id="userQuickFinderMapLink">Explore Floor Plan</a>
+              <a href="classrooms.html" class="btn btn-primary btn-sm" id="userInstantReserveBtn"><i class="bi bi-calendar-plus"></i> Instant Reserve</a>
             </div>
           </div>
-        </section>
+
+          <!-- Core Workspace Grid: Asymmetric 8 / 4 Split -->
+          <div class="row g-4">
+            <!-- Left (Primary Panel - 8 Columns) -->
+            <div class="col-12 col-xl-8">
+              <!-- Today's Hourly Campus Occupancy Chart -->
+              <section class="workspace-panel box-corners" aria-labelledby="hourlyChartHeading">
+                <div class="workspace-panel-header">
+                  <div>
+                    <h2 class="workspace-panel-title" id="hourlyChartHeading">Today's Hourly Occupancy (7 AM – 7 PM)</h2>
+                    <p class="workspace-panel-sub">Click any hour bar to preview room availability for that time slot</p>
+                  </div>
+                  <div class="d-flex gap-3 small text-muted">
+                    <span><i class="bi bi-square-fill me-1" style="color: var(--rq-primary); font-size: 0.65rem;"></i>Classes</span>
+                    <span><i class="bi bi-square-fill me-1" style="color: #f59e0b; font-size: 0.65rem;"></i>Reservations</span>
+                  </div>
+                </div>
+
+                <div class="hourly-chart-summary">
+                  <div class="hourly-stat-chip">
+                    <span>Peak Hour Today</span>
+                    <strong id="userPeakHourStat">—</strong>
+                  </div>
+                  <div class="hourly-stat-chip">
+                    <span>Quietest Window</span>
+                    <strong id="userQuietHourStat">—</strong>
+                  </div>
+                  <div class="hourly-stat-chip">
+                    <span>Total Sessions Today</span>
+                    <strong id="userSessionsTodayStat">—</strong>
+                  </div>
+                </div>
+
+                <div class="hourly-chart-grid" id="userHourlyChartGrid" role="group" aria-label="Hourly classroom occupancy bar chart">
+                  <div class="text-muted small text-center w-100 align-self-center">Calculating today's hourly forecast…</div>
+                </div>
+              </section>
+
+              <!-- Live Classroom Directory -->
+              <section class="workspace-panel box-corners" id="liveDirectorySection" aria-labelledby="liveRoomDirectoryHeading">
+                <div class="workspace-panel-header">
+                  <div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                      <h2 class="workspace-panel-title" id="liveRoomDirectoryHeading">Live Classroom Directory</h2>
+                      <span class="kpi-trend-pill kpi-trend-neutral" id="liveDirectoryCountBadge">Loading…</span>
+                    </div>
+                    <p class="workspace-panel-sub">Real-time room status, next free time, and 1-click floor plan reservation</p>
+                  </div>
+                  <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="availability-legend" id="userWindowLegend"><i></i> Current time range</span>
+                    <a href="classrooms.html" class="btn btn-outline-primary btn-sm">Full Map <i class="bi bi-arrow-right"></i></a>
+                  </div>
+                </div>
+
+                <div class="responsive-table-wrap">
+                  <table class="table table-hover align-middle roomq-table">
+                    <thead>
+                      <tr>
+                        <th>
+                          <button type="button" class="table-sort-btn" data-sort-key="room">
+                            Room <i class="bi bi-arrow-down-up"></i>
+                          </button>
+                        </th>
+                        <th>
+                          <button type="button" class="table-sort-btn" data-sort-key="building">
+                            Building &amp; Floor <i class="bi bi-arrow-down-up"></i>
+                          </button>
+                        </th>
+                        <th>
+                          <button type="button" class="table-sort-btn" data-sort-key="capacity">
+                            Capacity / Equipment <i class="bi bi-arrow-down-up"></i>
+                          </button>
+                        </th>
+                        <th>
+                          <button type="button" class="table-sort-btn is-active" data-sort-key="status">
+                            Status &amp; Window <i class="bi bi-arrow-down-up"></i>
+                          </button>
+                        </th>
+                        <th class="text-end">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="userLiveRoomsTableBody">
+                      <tr class="skeleton-row"><td colspan="5"><div class="skeleton-line"></div></td></tr>
+                      <tr class="skeleton-row"><td colspan="5"><div class="skeleton-line"></div></td></tr>
+                      <tr class="skeleton-row"><td colspan="5"><div class="skeleton-line"></div></td></tr>
+                      <tr class="skeleton-row"><td colspan="5"><div class="skeleton-line"></div></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-3" id="liveDirectoryFooter" hidden>
+                  <span class="small text-muted" id="liveDirectoryPaginationText"></span>
+                  <button type="button" class="btn btn-outline-primary btn-sm" id="toggleShowAllRoomsBtn">Show all matching rooms</button>
+                </div>
+              </section>
+
+              <!-- Building Utilization Breakdown -->
+              <section class="workspace-panel box-corners mb-0" aria-labelledby="userStatsHeading">
+                <div class="workspace-panel-header">
+                  <div>
+                    <h2 class="workspace-panel-title" id="userStatsHeading">Classroom Utilization by Building</h2>
+                    <p class="workspace-panel-sub">Facility occupancy breakdown across all campus buildings</p>
+                  </div>
+                  <a href="buildings.html" class="btn btn-outline-primary btn-sm">Browse Buildings</a>
+                </div>
+
+                <div class="responsive-table-wrap">
+                  <table class="table table-hover align-middle roomq-table">
+                    <thead>
+                      <tr>
+                        <th>Building</th>
+                        <th>Floors</th>
+                        <th>Total</th>
+                        <th>Available</th>
+                        <th>Occupied</th>
+                        <th>Reserved</th>
+                        <th style="min-width: 150px">Utilization</th>
+                        <th class="text-end">Floor Plan</th>
+                      </tr>
+                    </thead>
+                    <tbody id="userBuildingStatsTableBody">
+                      <tr class="skeleton-row"><td colspan="8"><div class="skeleton-line"></div></td></tr>
+                      <tr class="skeleton-row"><td colspan="8"><div class="skeleton-line"></div></td></tr>
+                      <tr class="skeleton-row"><td colspan="8"><div class="skeleton-line"></div></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+
+            <!-- Right (Secondary Panel - 4 Columns) -->
+            <div class="col-12 col-xl-4">
+              <!-- Quick Room Filter -->
+              <section class="workspace-panel box-corners" aria-labelledby="quickFilterHeading">
+                <div class="workspace-panel-header">
+                  <div>
+                    <h2 class="workspace-panel-title" id="quickFilterHeading">Quick Room Filter</h2>
+                    <p class="workspace-panel-sub">Filter live directory by status or equipment</p>
+                  </div>
+                  <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="resetQuickFiltersBtn">Reset</button>
+                </div>
+
+                <div class="blue-function-box">
+                  <label class="blue-function-label"><i class="bi bi-broadcast"></i> Availability Status</label>
+                  <div class="filter-chip-group" id="quickStatusChips">
+                    <button type="button" class="filter-chip-btn active" data-status="all" aria-pressed="true">All</button>
+                    <button type="button" class="filter-chip-btn" data-status="available" aria-pressed="false">Available</button>
+                    <button type="button" class="filter-chip-btn" data-status="occupied" aria-pressed="false">Occupied</button>
+                    <button type="button" class="filter-chip-btn" data-status="reserved" aria-pressed="false">Reserved</button>
+                  </div>
+                </div>
+
+                <div class="blue-function-box">
+                  <label for="quickCapacityFilter" class="blue-function-label"><i class="bi bi-people-fill"></i> Minimum Seating Capacity</label>
+                  <select id="quickCapacityFilter" class="form-select form-select-sm">
+                    <option value="0">Any capacity</option>
+                    <option value="20">20+ seats</option>
+                    <option value="35">35+ seats</option>
+                    <option value="50">50+ seats</option>
+                  </select>
+                </div>
+
+                <div class="blue-function-box">
+                  <label class="blue-function-label"><i class="bi bi-hourglass-split"></i> Open Duration</label>
+                  <div class="filter-chip-group">
+                    <button type="button" class="filter-chip-btn" id="filterOpenAllDayBtn" aria-pressed="false">
+                      <i class="bi bi-clock-check"></i> Open 2+ hrs / All day
+                    </button>
+                  </div>
+                </div>
+
+                <div class="blue-function-box">
+                  <label class="blue-function-label"><i class="bi bi-cpu-fill"></i> Facilities &amp; Equipment</label>
+                  <div class="filter-chip-group" id="quickFacilityChips">
+                    <button type="button" class="filter-chip-btn" data-facility="projector" aria-pressed="false"><i class="bi bi-projector"></i> Projector</button>
+                    <button type="button" class="filter-chip-btn" data-facility="air" aria-pressed="false"><i class="bi bi-wind"></i> AC</button>
+                    <button type="button" class="filter-chip-btn" data-facility="computer" aria-pressed="false"><i class="bi bi-pc-display"></i> Computer Lab</button>
+                    <button type="button" class="filter-chip-btn" data-facility="whiteboard" aria-pressed="false"><i class="bi bi-easel"></i> Whiteboard</button>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Recommended Available Now -->
+              <section class="workspace-panel box-corners" aria-labelledby="recommendedHeading">
+                <div class="workspace-panel-header">
+                  <div>
+                    <h2 class="workspace-panel-title" id="recommendedHeading">Recommended Open Rooms</h2>
+                    <p class="workspace-panel-sub">Longest uninterrupted open windows</p>
+                  </div>
+                  <span class="status-pill status-pill-available" id="recommendedLiveBadge">Live</span>
+                </div>
+                <div class="d-flex flex-column gap-2" id="userRecommendedRoomsList">
+                  <div class="skeleton-line"></div>
+                  <div class="skeleton-line"></div>
+                  <div class="skeleton-line"></div>
+                </div>
+              </section>
+
+              <!-- Space Distribution SVG Donut & Insights -->
+              <section class="workspace-panel box-corners mb-0" aria-labelledby="campusInsightsHeading">
+                <div class="workspace-panel-header">
+                  <div>
+                    <h2 class="workspace-panel-title" id="campusInsightsHeading">Space Distribution</h2>
+                    <p class="workspace-panel-sub" id="spaceDistributionSub">Real-time campus availability breakdown</p>
+                  </div>
+                  <span class="status-pill status-pill-available" id="userStatUtilization">—</span>
+                </div>
+
+                <div class="donut-layout mb-3">
+                  <div class="donut-svg-wrap">
+                    <svg viewBox="0 0 36 36" aria-hidden="true">
+                      <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#e2e8f0" stroke-width="3.6"></circle>
+                      <circle id="userDonutAvail" cx="18" cy="18" r="15.9155" fill="none" stroke="#007fff" stroke-width="3.6" stroke-dasharray="0 100" stroke-dashoffset="0"></circle>
+                      <circle id="userDonutOcc" cx="18" cy="18" r="15.9155" fill="none" stroke="#64748b" stroke-width="3.6" stroke-dasharray="0 100" stroke-dashoffset="0"></circle>
+                      <circle id="userDonutRes" cx="18" cy="18" r="15.9155" fill="none" stroke="#f59e0b" stroke-width="3.6" stroke-dasharray="0 100" stroke-dashoffset="0"></circle>
+                    </svg>
+                    <div class="donut-center-label">
+                      <strong id="userDonutPct">—%</strong>
+                      <span>Open</span>
+                    </div>
+                  </div>
+                  <div class="donut-legend-list">
+                    <div class="donut-legend-row">
+                      <span class="donut-legend-key"><i class="donut-legend-dot" style="background-color: var(--rq-primary);"></i> Available</span>
+                      <span class="donut-legend-val" id="userDonutOpenCount">—</span>
+                    </div>
+                    <div class="donut-legend-row">
+                      <span class="donut-legend-key"><i class="donut-legend-dot" style="background-color: #64748b;"></i> Occupied</span>
+                      <span class="donut-legend-val" id="userDonutOccCount">—</span>
+                    </div>
+                    <div class="donut-legend-row">
+                      <span class="donut-legend-key"><i class="donut-legend-dot" style="background-color: #f59e0b;"></i> Reserved</span>
+                      <span class="donut-legend-val" id="userDonutResCount">—</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-flex flex-column gap-2 pt-2">
+                  <div class="blue-info-box">
+                    <span class="blue-info-kicker"><i class="bi bi-building-check"></i> Highest Availability</span>
+                    <strong id="insightTopBuilding">—</strong>
+                    <span class="blue-info-meta" id="insightTopBuildingMeta">Calculating…</span>
+                  </div>
+                  <div class="blue-info-box">
+                    <span class="blue-info-kicker"><i class="bi bi-speedometer2"></i> Active Occupancy Index</span>
+                    <strong id="insightUtilizationRate">—</strong>
+                    <span class="blue-info-meta" id="insightUtilizationMeta">Real-time room occupancy</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+
+        <!-- Minimalist Anchored Footer -->
+        <footer class="workspace-footer">
+          <div>RoomQ Classroom Management System · © 2026 NORSU-MC 1</div>
+          <div class="workspace-footer-links">
+            <a href="classrooms.html#guide">Booking Policy</a>
+            <a href="classrooms.html#guide">Help &amp; Support</a>
+            <a href="buildings.html" class="system-status-link"><span class="status-dot-live" aria-hidden="true"></span> System Operational</a>
+          </div>
+        </footer>
       </main>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

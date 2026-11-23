@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const todayScheduleList = document.getElementById('dashboardTodayScheduleList');
   const activityList = document.getElementById('dashboardActivityList');
   const buildingFilter = document.getElementById('dashboardBuildingFilter');
-  const searchInput = document.getElementById('dashboardSearchInput');
+  const searchInput = document.getElementById('dashboardSearchInput') || document.getElementById('globalWorkspaceSearch');
   const statusButtons = [...document.querySelectorAll('#dashboardStatusFilters [data-status-filter]')];
 
   let allRooms = [];
@@ -455,24 +455,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     searchInput.addEventListener('input', renderRooms);
   }
 
-  try {
-    const [stats, rooms, schedules, buildings] = await Promise.all([
-      window.RoomQApi.request(`/api/dashboard?date=${encodeURIComponent(localDate)}`),
-      window.RoomQApi.request(`/api/availability?date=${localDate}&startTime=${startTime}&endTime=${endTime}`),
-      window.RoomQApi.request('/api/schedules'),
-      window.RoomQApi.request('/api/buildings')
-    ]);
+  const adminRefreshBtn = document.getElementById('adminRefreshBtn');
+  if (adminRefreshBtn) {
+    adminRefreshBtn.addEventListener('click', async () => {
+      adminRefreshBtn.disabled = true;
+      adminRefreshBtn.querySelector('i')?.classList.add('spin-icon');
+      try {
+        await loadDashboard();
+      } finally {
+        adminRefreshBtn.disabled = false;
+        adminRefreshBtn.querySelector('i')?.classList.remove('spin-icon');
+      }
+    });
+  }
 
-    allRooms = Array.isArray(rooms) ? rooms : [];
-    const safeBuildings = Array.isArray(buildings) ? buildings : [];
-    const safeSchedules = Array.isArray(schedules) ? schedules : [];
+  async function loadDashboard() {
+    try {
+      const [stats, rooms, schedules, buildings] = await Promise.all([
+        window.RoomQApi.request(`/api/dashboard?date=${encodeURIComponent(localDate)}`),
+        window.RoomQApi.request(`/api/availability?date=${localDate}&startTime=${startTime}&endTime=${endTime}`),
+        window.RoomQApi.request('/api/schedules'),
+        window.RoomQApi.request('/api/buildings')
+      ]);
 
-    // Populate building dropdown
-    if (buildingFilter) {
-      safeBuildings.forEach((b) => {
-        buildingFilter.append(new Option(b.name, b.id));
-      });
-    }
+      allRooms = Array.isArray(rooms) ? rooms : [];
+      const safeBuildings = Array.isArray(buildings) ? buildings : [];
+      const safeSchedules = Array.isArray(schedules) ? schedules : [];
+
+      // Populate building dropdown
+      if (buildingFilter && buildingFilter.options.length <= 1) {
+        safeBuildings.forEach((b) => {
+          buildingFilter.append(new Option(b.name, b.id));
+        });
+      }
 
     // Availability counts
     const totalRooms = allRooms.length || stats.totalClassrooms || 0;
@@ -487,24 +502,160 @@ document.addEventListener('DOMContentLoaded', async () => {
         .map((s) => s.instructor.trim().toLowerCase())
     );
 
-    // Update Hero Pulse
+    function formatHourLabel(hour24) {
+      const suffix = hour24 >= 12 ? 'PM' : 'AM';
+      const h = hour24 % 12 === 0 ? 12 : hour24 % 12;
+      return `${h}${suffix}`;
+    }
+
+    function formatHourRange(hour24) {
+      return `${formatHourLabel(hour24)}–${formatHourLabel(hour24 + 1)}`;
+    }
+
+    function timeToMinutes(t) {
+      const [hh, mm] = t.split(':').map(Number);
+      return hh * 60 + mm;
+    }
+
+    function renderAdminHourlyChart(allScheds, totalRoomCount) {
+      const hourlyGrid = document.getElementById('adminHourlyChartGrid');
+      const peakHourStat = document.getElementById('adminPeakHourStat');
+      const roomHoursStat = document.getElementById('adminRoomHoursStat');
+      if (!hourlyGrid) return;
+
+      const hours = [];
+      for (let h = 7; h <= 19; h += 1) hours.push(h);
+
+      const todayScheds = allScheds.filter((s) => appliesOnDate(s, localDate) && s.classroomId);
+      const totalRoomMinutes = todayScheds.reduce((sum, s) => {
+        return sum + Math.max(0, timeToMinutes(s.endTime) - timeToMinutes(s.startTime));
+      }, 0);
+      if (roomHoursStat) {
+        roomHoursStat.textContent = `${(totalRoomMinutes / 60).toFixed(1)} hrs`;
+      }
+
+      const slots = hours.map((h) => {
+        const slotStart = `${String(h).padStart(2, '0')}:00`;
+        const slotEnd = `${String(h + 1).padStart(2, '0')}:00`;
+        const occRooms = new Set();
+        const resRooms = new Set();
+        todayScheds.forEach((s) => {
+          if (s.startTime < slotEnd && s.endTime > slotStart) {
+            if (s.kind === 'reservation') resRooms.add(s.classroomId);
+            else occRooms.add(s.classroomId);
+          }
+        });
+        return {
+          hour: h,
+          occ: occRooms.size,
+          res: resRooms.size,
+          totalBusy: new Set([...occRooms, ...resRooms]).size
+        };
+      });
+
+      const maxScale = Math.max(totalRoomCount || 1, ...slots.map((s) => s.totalBusy), 1);
+      const currentHour = localNow.getHours();
+      const peakSlot = [...slots].sort((a, b) => b.totalBusy - a.totalBusy)[0];
+
+      if (peakHourStat) {
+        peakHourStat.textContent = peakSlot && peakSlot.totalBusy > 0
+          ? `${formatHourRange(peakSlot.hour)} (${peakSlot.totalBusy} rooms)`
+          : 'No peak today';
+      }
+
+      hourlyGrid.replaceChildren();
+      slots.forEach((slot) => {
+        const col = document.createElement('div');
+        col.className = `hourly-bar-col${slot.hour === currentHour ? ' is-current-hour' : ''}`;
+        col.title = `${formatHourRange(slot.hour)}: ${slot.occ} classes, ${slot.res} reservations`;
+
+        const count = document.createElement('span');
+        count.className = 'hourly-bar-count';
+        count.textContent = String(slot.totalBusy);
+
+        const track = document.createElement('div');
+        track.className = 'hourly-bar-track';
+
+        const resBar = document.createElement('div');
+        resBar.className = 'hourly-bar-fill-res';
+        resBar.style.height = `${Math.round((slot.res / maxScale) * 100)}%`;
+
+        const occBar = document.createElement('div');
+        occBar.className = 'hourly-bar-fill-occ';
+        occBar.style.height = `${Math.round((slot.occ / maxScale) * 100)}%`;
+
+        track.append(resBar, occBar);
+
+        const label = document.createElement('span');
+        label.className = 'hourly-bar-label';
+        label.textContent = formatHourLabel(slot.hour);
+
+        col.append(count, track, label);
+        col.addEventListener('click', () => {
+          const sTime = `${String(slot.hour).padStart(2, '0')}:00`;
+          const eTime = `${String(slot.hour + 1).padStart(2, '0')}:00`;
+          window.location.assign(`classrooms.html?date=${localDate}&startTime=${sTime}&endTime=${eTime}`);
+        });
+
+        hourlyGrid.append(col);
+      });
+    }
+
+    function renderAdminDonut(avail, occ, res, total) {
+      if (!total) return;
+      const availPct = (avail / total) * 100;
+      const occPct = (occ / total) * 100;
+      const resPct = (res / total) * 100;
+
+      const dAvail = document.getElementById('adminDonutAvail');
+      const dOcc = document.getElementById('adminDonutOcc');
+      const dRes = document.getElementById('adminDonutRes');
+      const dPct = document.getElementById('adminDonutPct');
+      const dOpenCount = document.getElementById('adminDonutOpenCount');
+      const dOccCount = document.getElementById('adminDonutOccCount');
+      const dResCount = document.getElementById('adminDonutResCount');
+
+      if (dAvail) {
+        dAvail.setAttribute('stroke-dasharray', `${availPct.toFixed(2)} ${(100 - availPct).toFixed(2)}`);
+        dAvail.setAttribute('stroke-dashoffset', '0');
+      }
+      if (dOcc) {
+        dOcc.setAttribute('stroke-dasharray', `${occPct.toFixed(2)} ${(100 - occPct).toFixed(2)}`);
+        dOcc.setAttribute('stroke-dashoffset', `${(-availPct).toFixed(2)}`);
+      }
+      if (dRes) {
+        dRes.setAttribute('stroke-dasharray', `${resPct.toFixed(2)} ${(100 - resPct).toFixed(2)}`);
+        dRes.setAttribute('stroke-dashoffset', `${(-(availPct + occPct)).toFixed(2)}`);
+      }
+      if (dPct) dPct.textContent = `${Math.round(availPct)}%`;
+      if (dOpenCount) dOpenCount.textContent = String(avail);
+      if (dOccCount) dOccCount.textContent = String(occ);
+      if (dResCount) dResCount.textContent = String(res);
+    }
+
+    // Update Hero Pulse & KPI Trends
     const heroBuildings = document.getElementById('dashboardHeroBuildings');
     const heroRooms = document.getElementById('dashboardHeroRooms');
     const heroUtilText = document.getElementById('dashboardHeroUtilizationText');
+    const availPct = totalRooms > 0 ? Math.round((availCount / totalRooms) * 100) : 0;
+
     if (heroBuildings) heroBuildings.textContent = String(safeBuildings.length);
     if (heroRooms) heroRooms.textContent = String(totalRooms);
     if (heroUtilText) {
-      const availPct = totalRooms > 0 ? Math.round((availCount / totalRooms) * 100) : 0;
       heroUtilText.textContent = `${availCount}/${totalRooms} open (${availPct}%)`;
     }
-    if (totalRooms > 0) {
-      const barAvail = document.getElementById('heroBarAvailable');
-      const barOcc = document.getElementById('heroBarOccupied');
-      const barRes = document.getElementById('heroBarReserved');
-      if (barAvail) barAvail.style.width = `${(availCount / totalRooms) * 100}%`;
-      if (barOcc) barOcc.style.width = `${(occCount / totalRooms) * 100}%`;
-      if (barRes) barRes.style.width = `${(resCount / totalRooms) * 100}%`;
-    }
+
+    const trendBuildings = document.getElementById('adminTrendBuildings');
+    const trendAvailPct = document.getElementById('adminTrendAvailPct');
+    const miniBarAvail = document.getElementById('adminMiniBarAvail');
+    const facultyChipStat = document.getElementById('adminFacultyChipStat');
+
+    if (trendBuildings) trendBuildings.textContent = `${safeBuildings.length} buildings`;
+    if (trendAvailPct) trendAvailPct.textContent = `Live · ${availPct}% open`;
+    if (miniBarAvail) miniBarAvail.style.width = `${availPct}%`;
+    if (facultyChipStat) facultyChipStat.textContent = `${uniqueFaculty.size} instructors`;
+
+    renderAdminDonut(availCount, occCount, resCount, totalRooms);
 
     // Update KPI Cards
     const totalClassroomsEl = document.getElementById('dashboardTotalClassrooms');
@@ -516,6 +667,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const conflictsCardEl = document.getElementById('dashboardConflictsCard');
     const topbarConflictPill = document.getElementById('topbarConflictPill');
     const topbarConflictLabel = document.getElementById('topbarConflictLabel');
+    const trendConflictStatus = document.getElementById('adminTrendConflictStatus');
+    const miniBarConflicts = document.getElementById('adminMiniBarConflicts');
+    const trendSessions = document.getElementById('adminTrendSessions');
 
     if (totalClassroomsEl) totalClassroomsEl.textContent = String(totalRooms);
     if (totalBuildingsMetaEl) {
@@ -529,13 +683,58 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('dashboardTodayClasses').textContent = String(stats.todaysClasses);
     document.getElementById('dashboardUnassignedClasses').textContent = String(stats.unassignedClasses);
 
+    if (trendSessions) {
+      trendSessions.textContent = `${stats.totalScheduledClasses} total`;
+    }
+
     if (totalFacultyEl) totalFacultyEl.textContent = String(uniqueFaculty.size);
     const conflictCount = Number(stats.totalConflicts) || 0;
+    const unassignedCount = Number(stats.unassignedClasses) || 0;
+
     if (totalConflictsEl) totalConflictsEl.textContent = String(conflictCount);
     if (conflictsCardEl) {
       conflictsCardEl.classList.toggle('kpi-danger', conflictCount > 0);
       conflictsCardEl.classList.toggle('kpi-success', conflictCount === 0);
     }
+    if (trendConflictStatus) {
+      trendConflictStatus.className = `kpi-trend-pill ${conflictCount > 0 ? 'kpi-trend-danger' : 'kpi-trend-success'}`;
+      trendConflictStatus.textContent = conflictCount > 0 ? 'Action Needed' : 'All Clear';
+    }
+    if (miniBarConflicts) {
+      miniBarConflicts.style.width = conflictCount > 0 ? '100%' : '15%';
+      miniBarConflicts.style.backgroundColor = conflictCount > 0 ? 'var(--rq-danger)' : 'var(--rq-success)';
+    }
+
+    const healthStrip = document.getElementById('adminHealthStrip');
+    const healthTitle = document.getElementById('adminHealthTitle');
+    const healthMeta = document.getElementById('adminHealthMeta');
+    const healthIcon = document.getElementById('adminHealthIcon');
+    if (healthStrip && healthTitle && healthMeta) {
+      if (conflictCount > 0) {
+        healthStrip.style.borderLeftColor = 'var(--rq-danger)';
+        if (healthIcon) {
+          healthIcon.style.backgroundColor = 'var(--rq-danger-tint)';
+          healthIcon.style.color = 'var(--rq-danger)';
+          healthIcon.innerHTML = '<i class="bi bi-exclamation-octagon"></i>';
+        }
+        healthTitle.textContent = `${conflictCount} schedule overlap${conflictCount === 1 ? '' : 's'} detected`;
+        healthMeta.textContent = 'Review overlapping class assignments immediately to keep campus rooms conflict-free.';
+      } else if (unassignedCount > 0) {
+        healthStrip.style.borderLeftColor = 'var(--rq-warning)';
+        if (healthIcon) {
+          healthIcon.style.backgroundColor = 'var(--rq-warning-tint)';
+          healthIcon.style.color = 'var(--rq-warning)';
+          healthIcon.innerHTML = '<i class="bi bi-inbox"></i>';
+        }
+        healthTitle.textContent = `Zero conflicts · ${unassignedCount} unassigned class${unassignedCount === 1 ? '' : 'es'}`;
+        healthMeta.textContent = 'Assign available rooms to pending classes in the Assignments hub.';
+      } else {
+        healthStrip.style.borderLeftColor = 'var(--rq-primary)';
+        healthTitle.textContent = 'Timetable Health: All scheduled sessions are conflict-free';
+        healthMeta.textContent = `${availCount} open rooms available right now across ${safeBuildings.length} campus buildings.`;
+      }
+    }
+
     if (topbarConflictPill && topbarConflictLabel) {
       topbarConflictPill.classList.toggle('has-conflicts', conflictCount > 0);
       topbarConflictPill.classList.toggle('is-clear', conflictCount === 0);
@@ -545,6 +744,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const roomsById = new Map(allRooms.map((r) => [r.id, r]));
+    renderAdminHourlyChart(safeSchedules, totalRooms);
     renderBuildingUtilization(safeBuildings, allRooms);
     renderTodaySchedules(safeSchedules, roomsById);
     renderRooms();
@@ -554,8 +754,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('dashboardAssignedRooms').textContent = '—';
     document.getElementById('dashboardTodayClasses').textContent = '—';
     document.getElementById('dashboardUnassignedClasses').textContent = '—';
-    cardsContainer.replaceChildren();
-    emptyEl.hidden = false;
-    emptyEl.textContent = `Dashboard data could not be loaded: ${error.message}`;
+    if (cardsContainer) cardsContainer.replaceChildren();
+    if (emptyEl) {
+      emptyEl.hidden = false;
+      emptyEl.textContent = `Dashboard data could not be loaded: ${error.message}`;
+    }
   }
+}
+
+  // Initial load
+  await loadDashboard();
 });
