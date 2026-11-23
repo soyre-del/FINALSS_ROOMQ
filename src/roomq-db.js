@@ -149,6 +149,9 @@ function createDatabase(filePath = path.join(__dirname, '..', 'roomq.sqlite'), o
   }
 
   function seedBuildings(database) {
+    const expectedBuildingIds = new Set();
+    const expectedFloorIds = new Set();
+    const expectedClassroomIds = new Set();
     const insertBuilding = database.prepare(
       'INSERT INTO buildings (id, name) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name'
     );
@@ -171,8 +174,10 @@ function createDatabase(filePath = path.join(__dirname, '..', 'roomq.sqlite'), o
     `);
 
     for (const building of buildings) {
+      expectedBuildingIds.add(building.id);
       insertBuilding.run(building.id, building.name);
       for (const floor of building.floors) {
+        expectedFloorIds.add(`${building.id}:${floor.id}`);
         insertFloor.run(
           building.id,
           floor.id,
@@ -186,8 +191,10 @@ function createDatabase(filePath = path.join(__dirname, '..', 'roomq.sqlite'), o
           const roomNumber = region.roomNumber !== undefined
             ? region.roomNumber
             : Number(floor.id) * 100 + index + 1;
+          const classroomId = `${building.id}-${floor.id}-${region.id}`;
+          expectedClassroomIds.add(classroomId);
           insertClassroom.run(
-            `${building.id}-${floor.id}-${region.id}`,
+            classroomId,
             building.id,
             floor.id,
             region.id,
@@ -199,6 +206,24 @@ function createDatabase(filePath = path.join(__dirname, '..', 'roomq.sqlite'), o
             region.height
           );
         });
+      }
+    }
+
+    for (const row of database.prepare('SELECT id FROM classrooms').all()) {
+      if (!expectedClassroomIds.has(row.id)) {
+        database.prepare('UPDATE schedules SET classroom_id = NULL WHERE classroom_id = ?').run(row.id);
+        database.prepare('DELETE FROM classrooms WHERE id = ?').run(row.id);
+      }
+    }
+    for (const row of database.prepare('SELECT building_id, id FROM floors').all()) {
+      if (!expectedFloorIds.has(`${row.building_id}:${row.id}`)) {
+        database.prepare('DELETE FROM floors WHERE building_id = ? AND id = ?')
+          .run(row.building_id, row.id);
+      }
+    }
+    for (const row of database.prepare('SELECT id FROM buildings').all()) {
+      if (!expectedBuildingIds.has(row.id)) {
+        database.prepare('DELETE FROM buildings WHERE id = ?').run(row.id);
       }
     }
   }

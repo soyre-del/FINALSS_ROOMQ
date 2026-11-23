@@ -70,7 +70,7 @@ test('database seeds only the existing mapped rooms and prevents double-booking'
 
   assert.equal(database.listBuildings().length, 8);
   assert.equal(rooms.length, 11);
-  assert.equal(database.listClassrooms({ buildingId: 'law' }).length, 0);
+  assert.equal(database.listClassrooms({ buildingId: 'law' }).length, 5);
 
   const classroomId = rooms[0].id;
   const first = database.saveSchedule(classSchedule(classroomId));

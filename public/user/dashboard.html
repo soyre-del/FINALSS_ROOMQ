@@ -30,11 +30,11 @@
             <div class="nav-group">
               <p class="nav-section-label">Spaces</p>
               <a href="classrooms.html" class="nav-item"><span class="nav-icon"><i class="bi bi-door-open"></i></span>Classrooms</a>
+              <a href="buildings.html" class="nav-item"><span class="nav-icon"><i class="bi bi-buildings"></i></span>Browse Buildings</a>
             </div>
             <div class="nav-group">
-              <p class="nav-section-label">Reservations</p>
-              <a href="classrooms.html" class="nav-item"><span class="nav-icon"><i class="bi bi-calendar-plus"></i></span>Book a Classroom</a>
-              <a href="#guide" class="nav-item" id="sidebarNavGuide"><span class="nav-icon"><i class="bi bi-info-circle"></i></span>Reservation Guide</a>
+              <p class="nav-section-label">Guide</p>
+              <a href="classrooms.html#guide" class="nav-item"><span class="nav-icon"><i class="bi bi-info-circle"></i></span>Reservation Guide</a>
             </div>
             <div class="nav-group" id="adminPortalNavGroup" hidden>
               <p class="nav-section-label">Administrator Portal</p>
@@ -85,12 +85,12 @@
 
         <section class="campus-hero" aria-labelledby="userDashboardHeading">
           <div class="campus-hero-copy">
-            <p class="campus-kicker"><span></span> RoomQ · User Portal</p>
-            <h2 id="userDashboardHeading">Find an open classroom in seconds.</h2>
-            <p class="campus-description">Inspect live campus space availability, explore interactive floor plans, and reserve an available room.</p>
+            <p class="campus-kicker"><span></span> Live Space Analytics · NORSU-MC 1</p>
+            <h2 id="userDashboardHeading">Campus Classroom &amp; Space Statistics</h2>
+            <p class="campus-description">Real-time occupancy metrics, available classroom capacity, and live space utilization across all 8 campus facilities.</p>
             <div class="campus-actions">
-              <a class="btn btn-light" href="classrooms.html"><i class="bi bi-door-open"></i> Browse floor plans</a>
-              <a class="btn btn-outline-light" href="classrooms.html"><i class="bi bi-calendar-check"></i> Check availability</a>
+              <a class="btn btn-light" href="classrooms.html"><i class="bi bi-door-open"></i> View floor plans</a>
+              <a class="btn btn-outline-light" href="buildings.html"><i class="bi bi-buildings"></i> Browse buildings</a>
             </div>
           </div>
 
@@ -121,12 +121,13 @@
           </aside>
         </section>
 
-        <section class="dashboard-kpi-grid kpi-grid-3" aria-label="Campus live availability summary">
+        <!-- KPI Grid: 4 Core Campus Metrics -->
+        <section class="dashboard-kpi-grid" aria-label="Campus live availability summary">
           <a href="classrooms.html?status=available" class="kpi-card kpi-success" data-quick-status="available">
             <div class="kpi-card-body">
               <p class="kpi-label">Available Right Now</p>
               <strong class="kpi-value" id="userStatAvailable">—</strong>
-              <span class="kpi-meta">Open spaces ready to reserve</span>
+              <span class="kpi-meta" id="userStatAvailableMeta">Open spaces ready to reserve</span>
             </div>
             <div class="kpi-icon-well"><i class="bi bi-check2-circle"></i></div>
           </a>
@@ -148,124 +149,76 @@
             </div>
             <div class="kpi-icon-well"><i class="bi bi-bookmark-check"></i></div>
           </a>
+
+          <a href="buildings.html" class="kpi-card">
+            <div class="kpi-card-body">
+              <p class="kpi-label">Campus Utilization</p>
+              <strong class="kpi-value" id="userStatUtilization">—</strong>
+              <span class="kpi-meta">Across 8 campus facilities</span>
+            </div>
+            <div class="kpi-icon-well"><i class="bi bi-pie-chart"></i></div>
+          </a>
         </section>
 
-        <section class="dashboard-views-card" id="userRoomsPanel" aria-label="Classroom and campus explorer">
-          <div class="dashboard-view-switcher-bar">
-            <div class="dashboard-view-buttons" role="tablist" aria-label="User interactive views">
-              <button type="button" role="tab" aria-selected="true" class="dashboard-view-btn active" data-view-target="user-buildings" id="viewBtnUserBuildings">
-                <i class="bi bi-buildings"></i>
-                <span>Browse by Building</span>
-                <span class="view-btn-badge" id="userTabBadgeBuildings">0</span>
-              </button>
-              <button type="button" role="tab" aria-selected="false" class="dashboard-view-btn" data-view-target="user-guide" id="viewBtnUserGuide">
-                <i class="bi bi-info-circle"></i>
-                <span>Reservation Guide</span>
-              </button>
+        <!-- Campus Space & Facility Utilization Statistics Panel -->
+        <section class="panel statistics-panel" aria-labelledby="userStatsHeading">
+          <div class="panel-header-row mb-3">
+            <div>
+              <p class="panel-kicker">Live space analytics</p>
+              <h2 id="userStatsHeading">Classroom Occupancy &amp; Utilization by Building</h2>
             </div>
-            <div class="dashboard-view-actions">
+            <div class="d-flex align-items-center gap-3">
+              <div class="utilization-legend d-none d-md-flex" aria-label="Utilization breakdown legend">
+                <span><i style="background-color: var(--rq-primary)"></i> Occupied</span>
+                <span><i style="background-color: var(--rq-warning)"></i> Reserved</span>
+                <span><i style="background-color: #cbd5e1"></i> Available</span>
+              </div>
               <span class="availability-legend" id="userWindowLegend"><i></i> Current time range</span>
             </div>
           </div>
 
-          <!-- Pane 1: Browse by Building -->
-          <div class="dashboard-view-pane active" id="pane-user-buildings" role="tabpanel" aria-labelledby="viewBtnUserBuildings">
-            <div class="panel-header-row mb-3">
-              <div>
-                <p class="panel-kicker">Campus map</p>
-                <h2 id="userBuildingsHeading">Browse by building</h2>
-              </div>
-              <a href="classrooms.html" class="panel-link-action">Interactive floor plan <i class="bi bi-arrow-right"></i></a>
-            </div>
-            <div class="dashboard-scroll-body">
-              <div class="building-directory-grid" id="userBuildingsGrid">
-                <div class="dashboard-empty-state">Loading campus buildings…</div>
-              </div>
-            </div>
+          <!-- Statistical Breakdown Table -->
+          <div class="responsive-table-wrap mb-4">
+            <table class="table table-hover align-middle roomq-table">
+              <thead>
+                <tr>
+                  <th>Building</th>
+                  <th>Floors</th>
+                  <th>Total Classrooms</th>
+                  <th>Available</th>
+                  <th>Occupied</th>
+                  <th>Reserved</th>
+                  <th style="min-width: 170px">Utilization Rate</th>
+                  <th style="width: 110px">Floor Plan</th>
+                </tr>
+              </thead>
+              <tbody id="userBuildingStatsTableBody">
+                <tr><td colspan="8" class="text-center py-4 text-muted">Calculating live facility statistics…</td></tr>
+              </tbody>
+            </table>
           </div>
 
-          <!-- Pane 2: Reservation Guide & Account -->
-          <div class="dashboard-view-pane" id="pane-user-guide" role="tabpanel" aria-labelledby="viewBtnUserGuide">
-            <div class="panel-header-row mb-3">
-              <div>
-                <p class="panel-kicker">Step-by-step walkthrough</p>
-                <h2 id="reservationStepsHeading">How to Reserve a Classroom</h2>
+          <!-- Statistical Insights Cards -->
+          <div class="row g-3">
+            <div class="col-md-4">
+              <div class="p-3 bg-light rounded-3 border">
+                <p class="small text-muted mb-1 text-uppercase fw-bold">Campus Capacity</p>
+                <h4 class="h5 mb-1" id="insightTotalRooms">47 Total Classrooms</h4>
+                <span class="small text-muted" id="insightTotalRoomsMeta">Across 8 buildings and 18 mapped floors</span>
               </div>
-              <a href="classrooms.html" class="panel-link-action">Go to interactive reservation <i class="bi bi-arrow-right"></i></a>
             </div>
-            <div class="dashboard-scroll-body">
-              <!-- 3-Step Interactive Process -->
-              <div class="guide-steps-grid">
-                <article class="guide-step-card">
-                  <div class="guide-step-header">
-                    <span class="guide-step-number">01</span>
-                    <span class="guide-step-icon"><i class="bi bi-buildings"></i></span>
-                  </div>
-                  <h3>Select Building &amp; Floor</h3>
-                  <p>Browse campus facilities across 6 buildings to view real-time occupancy rates and detailed architectural floor layouts.</p>
-                  <a href="classrooms.html" class="btn btn-outline-primary btn-sm"><i class="bi bi-map"></i> View Floor Plans</a>
-                </article>
-
-                <article class="guide-step-card">
-                  <div class="guide-step-header">
-                    <span class="guide-step-number">02</span>
-                    <span class="guide-step-icon"><i class="bi bi-clock-history"></i></span>
-                  </div>
-                  <h3>Choose Date &amp; Time Window</h3>
-                  <p>Filter by your desired date and 10-minute time intervals to verify open slots without schedule collisions.</p>
-                  <a href="classrooms.html" class="btn btn-outline-primary btn-sm"><i class="bi bi-calendar-check"></i> Check Availability</a>
-                </article>
-
-                <article class="guide-step-card">
-                  <div class="guide-step-header">
-                    <span class="guide-step-number">03</span>
-                    <span class="guide-step-icon"><i class="bi bi-bookmark-check"></i></span>
-                  </div>
-                  <h3>Click Room &amp; Confirm Booking</h3>
-                  <p>Click any highlighted green room region directly on the floor plan to open the booking dialog and lock in your reservation.</p>
-                  <a href="classrooms.html" class="btn btn-primary btn-sm"><i class="bi bi-calendar-plus"></i> Reserve Classroom</a>
-                </article>
+            <div class="col-md-4">
+              <div class="p-3 bg-light rounded-3 border">
+                <p class="small text-muted mb-1 text-uppercase fw-bold">Highest Availability</p>
+                <h4 class="h5 mb-1 text-success" id="insightTopBuilding">—</h4>
+                <span class="small text-muted" id="insightTopBuildingMeta">Calculating best building…</span>
               </div>
-
-              <!-- Policies & Fast Facts Strip -->
-              <div class="guide-policies-strip">
-                <div class="guide-policy-item">
-                  <i class="bi bi-shield-check"></i>
-                  <div>
-                    <strong>Conflict-Free Assurance</strong>
-                    <span>Bookings are checked instantly against timetables and existing reservations.</span>
-                  </div>
-                </div>
-                <div class="guide-policy-item">
-                  <i class="bi bi-stopwatch"></i>
-                  <div>
-                    <strong>10-Minute Precision</strong>
-                    <span>Flexible booking times with start and end times in 10-minute increments.</span>
-                  </div>
-                </div>
-                <div class="guide-policy-item">
-                  <i class="bi bi-person-badge"></i>
-                  <div>
-                    <strong>Student &amp; Faculty Access</strong>
-                    <span>Anyone can view live availability; sign in to confirm and manage bookings.</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Dynamic Account CTA Banner -->
-              <div class="account-cta-banner" id="userAccountBanner">
-                <div class="account-cta-content">
-                  <div class="account-cta-icon" id="userAccountBannerIcon">
-                    <i class="bi bi-person-lock"></i>
-                  </div>
-                  <div>
-                    <h4 class="account-cta-title" id="userAccountBannerTitle">Account Sign In Required to Reserve</h4>
-                    <p class="account-cta-desc" id="userAccountBannerText">Sign in or create an account to confirm classroom reservations. Schedule management is limited to administrators.</p>
-                  </div>
-                </div>
-                <a class="btn btn-primary" id="userAccountBannerBtn" href="login.html?returnTo=%2Fuser%2Fdashboard.html">
-                  <i class="bi bi-box-arrow-in-right"></i> Sign in to reserve
-                </a>
+            </div>
+            <div class="col-md-4">
+              <div class="p-3 bg-light rounded-3 border">
+                <p class="small text-muted mb-1 text-uppercase fw-bold">Current Utilization Index</p>
+                <h4 class="h5 mb-1 text-primary" id="insightUtilizationRate">—</h4>
+                <span class="small text-muted" id="insightUtilizationMeta">Real-time room occupancy index</span>
               </div>
             </div>
           </div>

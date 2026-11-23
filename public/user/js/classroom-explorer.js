@@ -56,6 +56,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('roomBookingEndPicker'),
     roomBookingEnd
   );
+  const openBookingDialogBtn = document.getElementById('openBookingDialogBtn');
+  const openBookingBtnText = document.getElementById('openBookingBtnText');
+  const topbarBookBtn = document.getElementById('topbarBookBtn');
+  const guideReserveBtn = document.getElementById('guideReserveBtn');
   const floorPlanCanvas = document.getElementById('floorPlanCanvas');
   const planStage = document.getElementById('planStage');
   const planSourceLayer = document.getElementById('planSourceLayer');
@@ -420,6 +424,12 @@ document.addEventListener('DOMContentLoaded', () => {
     setStatusClasses(detailsStatus, 'unknown');
     setStatusClasses(detailsStatusDot, 'unknown');
     scheduleEmpty.textContent = 'Select a room to view its schedule.';
+    if (openBookingDialogBtn) {
+      openBookingDialogBtn.disabled = true;
+    }
+    if (openBookingBtnText) {
+      openBookingBtnText.textContent = 'Book this Classroom';
+    }
     if (roomBookingDialog.open) {
       roomBookingDialog.close();
     }
@@ -463,6 +473,62 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function openBookingDialogForRoom(region = null, index = null) {
+    let targetRegion = region;
+    let targetIndex = index;
+
+    if (!targetRegion && selectedRegionId && currentFloor) {
+      targetIndex = currentFloor.regions.findIndex((r) => r.id === selectedRegionId);
+      if (targetIndex >= 0) {
+        targetRegion = currentFloor.regions[targetIndex];
+      }
+    }
+
+    if (!targetRegion && currentFloor && Array.isArray(currentFloor.regions) && currentFloor.regions.length > 0) {
+      const availableRoom = currentFloor.regions.find((r) => {
+        const rec = getRoomAvailability(r.id);
+        return rec && rec.status === 'available';
+      });
+      targetRegion = availableRoom || currentFloor.regions[0];
+      targetIndex = currentFloor.regions.indexOf(targetRegion);
+      selectRegion(targetRegion, targetIndex);
+    }
+
+    if (!targetRegion || !currentBuilding || !currentFloor) {
+      const bSelector = document.getElementById('buildingSelector');
+      if (bSelector) {
+        bSelector.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        bSelector.focus();
+      }
+      return;
+    }
+
+    const roomNumber = getRoomNumber(targetIndex, targetRegion);
+    const roomName = targetRegion.name
+      ? (roomNumber === null ? targetRegion.name : `Room ${roomNumber} · ${targetRegion.name}`)
+      : `Room ${roomNumber}`;
+
+    roomBookingRoom.textContent = `${currentBuilding.name} · ${currentFloor.label} · ${roomName}`;
+    const returnParams = new URLSearchParams({
+      building: currentBuilding.id,
+      floor: currentFloor.id,
+      room: targetRegion.id
+    });
+    const currentPath = window.location.pathname.startsWith('/admin/')
+      ? '/admin/classrooms.html'
+      : '/user/classrooms.html';
+    roomBookingLoginLink.href = `/user/login.html?returnTo=${encodeURIComponent(`${currentPath}?${returnParams}`)}`;
+    roomBookingDate.value = availabilityDate.value || localDate;
+    roomBookingStartPicker.setValue(availabilityStart.value);
+    roomBookingEndPicker.setValue(availabilityEnd.value);
+    roomBookingFeedback.textContent = '';
+    roomBookingFeedback.classList.remove('is-error');
+
+    if (!roomBookingDialog.open) {
+      roomBookingDialog.showModal();
+    }
+  }
+
   function selectRegion(region, index) {
     selectedRegionId = region.id;
     roomOverlayLayer.querySelectorAll('.classroom-region-overlay').forEach((overlay) => {
@@ -474,9 +540,14 @@ document.addEventListener('DOMContentLoaded', () => {
       ? (roomNumber === null ? region.name : `Room ${roomNumber} · ${region.name}`)
       : `Room ${roomNumber}`;
     selectedRoomName.textContent = roomName;
-    if (!roomBookingDialog.open) {
-      roomBookingDialog.showModal();
+
+    if (openBookingDialogBtn) {
+      openBookingDialogBtn.disabled = false;
     }
+    if (openBookingBtnText) {
+      openBookingBtnText.textContent = `Book ${roomName}`;
+    }
+
     roomBookingRoom.textContent = `${currentBuilding.name} · ${currentFloor.label} · ${roomName}`;
     const returnParams = new URLSearchParams({
       building: currentBuilding.id,
@@ -624,9 +695,12 @@ document.addEventListener('DOMContentLoaded', () => {
       marker.style.top = `${staffRoom.y * fitScale}px`;
       marker.style.width = `${staffRoom.width * fitScale}px`;
       marker.style.height = `${staffRoom.height * fitScale}px`;
-      marker.title = 'Office / staff room (source plan)';
+      marker.title = staffRoom.name || 'Office / staff room (source plan)';
       marker.setAttribute('role', 'img');
-      marker.setAttribute('aria-label', 'Office or staff room');
+      marker.setAttribute('aria-label', staffRoom.name || 'Office or staff room');
+      if (staffRoom.name) {
+        marker.textContent = staffRoom.name;
+      }
       roomOverlayLayer.append(marker);
     });
 
@@ -838,23 +912,24 @@ document.addEventListener('DOMContentLoaded', () => {
       : 'Sign in or create a user account to reserve this classroom.';
     roomBookingLoginLink.hidden = Boolean(user);
   });
-  const navBookClassroom = document.getElementById('navBookClassroom');
-  if (navBookClassroom) {
-    navBookClassroom.addEventListener('click', (e) => {
+  if (openBookingDialogBtn) {
+    openBookingDialogBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      if (selectedRegionId && currentFloor) {
-        const idx = currentFloor.regions.findIndex((r) => r.id === selectedRegionId);
-        if (idx >= 0) {
-          selectRegion(currentFloor.regions[idx], idx);
-          return;
-        }
-      }
-      if (currentFloor && currentFloor.regions && currentFloor.regions.length > 0) {
-        selectRegion(currentFloor.regions[0], 0);
-      } else {
-        const sel = document.getElementById('buildingSelector');
-        if (sel) sel.focus();
-      }
+      openBookingDialogForRoom();
+    });
+  }
+
+  if (topbarBookBtn) {
+    topbarBookBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      openBookingDialogForRoom();
+    });
+  }
+
+  if (guideReserveBtn) {
+    guideReserveBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      openBookingDialogForRoom();
     });
   }
 
@@ -876,6 +951,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (regionIndex >= 0) {
       selectRegion(currentFloor.regions[regionIndex], regionIndex);
     }
+  }
+
+  const shouldOpenBooking = query.get('book') === 'true';
+  if (shouldOpenBooking) {
+    openBookingDialogForRoom();
   }
 
   const statusParam = query.get('status');

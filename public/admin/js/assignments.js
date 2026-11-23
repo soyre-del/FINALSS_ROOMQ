@@ -190,8 +190,12 @@ document.addEventListener('DOMContentLoaded', () => {
       marker.style.top = `${staffRoom.y * scale}px`;
       marker.style.width = `${staffRoom.width * scale}px`;
       marker.style.height = `${staffRoom.height * scale}px`;
+      marker.title = staffRoom.name || 'Office / staff room (source plan)';
       marker.setAttribute('role', 'img');
-      marker.setAttribute('aria-label', 'Office or staff room');
+      marker.setAttribute('aria-label', staffRoom.name || 'Office or staff room');
+      if (staffRoom.name) {
+        marker.textContent = staffRoom.name;
+      }
       floorPlanOverlayLayer.append(marker);
     });
 

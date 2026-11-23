@@ -2142,7 +2142,18 @@ dialog {
   border: 1px solid #a7f3d0;
   border-radius: 6px;
   background-color: #d1fae5;
-  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(0.5rem, 0.72vw, 0.65rem);
+  font-weight: 600;
+  color: #065f46;
+  text-align: center;
+  line-height: 1.15;
+  padding: 2px 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
 }
 
 .source-plan-key {

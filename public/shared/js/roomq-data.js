@@ -13,7 +13,13 @@
       height,
       ...(roomOverrides[index] || {})
     })),
-    staffRooms: staffRooms.map(([x, y, width, height]) => ({ x, y, width, height }))
+    staffRooms: staffRooms.map(([x, y, width, height, name]) => ({
+      x,
+      y,
+      width,
+      height,
+      name: name || ''
+    }))
   });
 
   const buildings = [
@@ -206,7 +212,30 @@
         }
       ]
     },
-    { id: 'law', name: 'LAW Rooms', floors: [] }
+    {
+      id: 'law',
+      name: 'LAW Rooms',
+      floors: [
+        {
+          ...floor('1', '1st Floor', [8, 298, 140, 52], [
+            [102, 319, 16, 16],
+            [85, 313, 16, 16],
+            [68, 308, 16, 16],
+            [50, 305, 16, 16],
+            [33, 307, 16, 16]
+          ], [
+            [12, 310, 19, 16, 'Stock Room'],
+            [120, 326, 20, 16, 'Psych Office']
+          ], {
+            0: { roomNumber: 101, name: 'Psych Room 1' },
+            1: { roomNumber: 102, name: 'Psych Room 2' },
+            2: { roomNumber: 103, name: 'Psych Room 3' },
+            3: { roomNumber: 104, name: 'Psych Room 4' },
+            4: { roomNumber: 105, name: 'Psych Room 5' }
+          })
+        }
+      ]
+    }
   ];
 
   const data = {
