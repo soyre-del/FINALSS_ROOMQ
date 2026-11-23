@@ -50,6 +50,16 @@ function validateScheduleInput(input) {
   if (kind === 'class' && (!course || !section || !instructor)) {
     invalid('Course, section, and instructor are required for a class schedule.');
   }
+  // Limits match the column sizes in the schedules table.
+  if (course.length > 120 || instructor.length > 120) {
+    invalid('Course and instructor must be 120 characters or fewer.');
+  }
+  if (section.length > 64) {
+    invalid('Section must be 64 characters or fewer.');
+  }
+  if (classroomId && classroomId.length > 128) {
+    invalid('The selected classroom does not exist in the room database.');
+  }
 
   if (recurrence === 'once') {
     if (!isValidDate(input.date)) {
