@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Users | RoomQ</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="../shared/css/roomq.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar offcanvas-lg offcanvas-start" id="appSidebar" tabindex="-1" aria-label="Sidebar">
+        <div class="sidebar-inner">
+          <div class="brand-block">
+            <a class="brand-link" href="dashboard.html" aria-label="RoomQ Admin Portal">
+              <img src="../assets/roomq-logo.webp" alt="RoomQ Logo" class="brand-logo-img" />
+              <span class="brand-sub-badge">Admin Portal</span>
+            </a>
+            <button type="button" class="btn-close btn-close-white d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#appSidebar" aria-label="Close menu"></button>
+          </div>
+          <nav class="sidebar-nav" aria-label="Main navigation">
+            <div class="nav-group">
+              <p class="nav-section-label">Overview</p>
+              <a href="dashboard.html" class="nav-item"><span class="nav-icon"><i class="bi bi-grid-1x2"></i></span>Dashboard</a>
+              <a href="insights.html" class="nav-item"><span class="nav-icon"><i class="bi bi-bar-chart-line"></i></span>Campus Analytics</a>
+            </div>
+            <div class="nav-group">
+              <p class="nav-section-label">Spaces</p>
+              <a href="classrooms.html" class="nav-item"><span class="nav-icon"><i class="bi bi-door-open"></i></span>Classrooms</a>
+            </div>
+            <div class="nav-group">
+              <p class="nav-section-label">Scheduling</p>
+              <a href="schedules.html" class="nav-item"><span class="nav-icon"><i class="bi bi-calendar3"></i></span>Schedules</a>
+              <a href="assignments.html" class="nav-item"><span class="nav-icon"><i class="bi bi-journal-check"></i></span>Assignments</a>
+              <a href="conflicts.html" class="nav-item"><span class="nav-icon"><i class="bi bi-exclamation-triangle"></i></span>Conflicts</a>
+            </div>
+            <div class="nav-group">
+              <p class="nav-section-label">Administration</p>
+              <a href="reports.html" class="nav-item"><span class="nav-icon"><i class="bi bi-bar-chart-line"></i></span>Reports</a>
+              <a href="activity-logs.html" class="nav-item"><span class="nav-icon"><i class="bi bi-clock-history"></i></span>Activity Logs</a>
+              <a href="users.html" class="nav-item active" aria-current="page"><span class="nav-icon"><i class="bi bi-people"></i></span>Users</a>
+            </div>
+          </nav>
+          <div class="profile-box" id="sidebarProfileBox">
+            <div class="mini-avatar" id="sidebarMiniAvatar">AD</div>
+            <div class="flex-grow-1 min-w-0">
+              <strong id="sidebarProfileName" class="text-truncate">Administrator</strong>
+              <span id="sidebarProfileRole">Admin Portal</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="workspace-header">
+          <div class="workspace-header-left">
+            <button class="menu-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebar" aria-controls="appSidebar" aria-label="Open menu"><i class="bi bi-list"></i></button>
+            <div class="workspace-breadcrumb-wrap">
+              <nav class="workspace-breadcrumb" aria-label="Breadcrumb">
+                <a href="dashboard.html">Admin Portal</a>
+                <span class="workspace-breadcrumb-sep">/</span>
+                <span>Users</span>
+                <span class="workspace-breadcrumb-sep d-none d-sm-inline">·</span>
+                <span class="d-none d-sm-inline" id="todayDate"></span>
+              </nav>
+              <span class="workspace-header-title">User Management</span>
+            </div>
+          </div>
+
+          <div class="workspace-header-right">
+            <label class="workspace-search d-none d-lg-block" aria-label="Search classrooms or buildings">
+              <i class="bi bi-search"></i>
+              <input id="globalWorkspaceSearch" class="form-control" type="search" placeholder="Search rooms, buildings, or schedules…" />
+            </label>
+
+            <div class="dropdown">
+              <button class="workspace-icon-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications">
+                <i class="bi bi-bell"></i>
+                <span class="notif-dot" aria-hidden="true"></span>
+              </button>
+              <div class="dropdown-menu dropdown-menu-end workspace-dropdown-menu">
+                <p class="px-2 py-1 mb-1 small fw-bold text-dark">Accounts</p>
+                <div class="px-2 py-1 small text-muted">Create staff accounts, assign roles, and control access.</div>
+              </div>
+            </div>
+
+            <div class="dropdown">
+              <button class="workspace-profile-trigger" type="button" id="topbarUserPill" data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="user-avatar" id="topbarAvatar">AD</span>
+                <span class="workspace-profile-meta d-none d-sm-flex">
+                  <strong id="topbarUsername">Administrator</strong>
+                  <span id="topbarRole">Admin Portal</span>
+                </span>
+                <i class="bi bi-chevron-down small text-muted ms-1 d-none d-sm-inline"></i>
+              </button>
+              <div class="dropdown-menu dropdown-menu-end workspace-dropdown-menu">
+                <a class="dropdown-item" href="dashboard.html"><i class="bi bi-grid-1x2 me-2"></i>Dashboard</a>
+                <a class="dropdown-item" href="schedules.html"><i class="bi bi-calendar3 me-2"></i>Manage Schedules</a>
+                <a class="dropdown-item" href="../user/dashboard.html" id="headerPortalSwitch"><i class="bi bi-eye me-2"></i>Switch to User Portal</a>
+              </div>
+            </div>
+
+            <div class="header-auth-actions" id="headerAuthActions">
+              <a href="../user/login.html" class="btn-header-auth btn-header-login" id="headerLoginBtn" title="Sign in to RoomQ">
+                <i class="bi bi-box-arrow-in-right"></i>
+                <span>Sign In</span>
+              </a>
+              <button type="button" class="btn-header-auth btn-header-logout" id="headerLogoutBtn" title="Sign out of RoomQ" hidden>
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Sign Out</span>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div class="workspace-body">
+          <div class="workspace-action-bar">
+            <div>
+              <h1 class="workspace-page-title">User Management</h1>
+              <p class="workspace-page-subtitle">Create staff accounts, assign roles, and activate or deactivate access.</p>
+            </div>
+            <div class="workspace-action-controls">
+              <button type="button" class="btn btn-primary btn-sm" id="userAddButton" disabled><i class="bi bi-person-plus"></i> Add user</button>
+            </div>
+          </div>
+
+          <section class="panel schedule-auth-panel" aria-label="Administrator sign in"><div id="adminSessionPanel"></div></section>
+
+          <section class="schedule-summary-grid" aria-label="Account summary">
+            <article class="summary-card summary-primary"><div class="summary-icon"><i class="bi bi-people"></i></div><div><p>Total accounts</p><strong id="userStatTotal">—</strong></div></article>
+            <article class="summary-card"><div class="summary-icon accent"><i class="bi bi-shield-lock"></i></div><div><p>Administrators</p><strong id="userStatAdmins">—</strong></div></article>
+            <article class="summary-card"><div class="summary-icon navy"><i class="bi bi-person-badge"></i></div><div><p>Staff</p><strong id="userStatStaff">—</strong></div></article>
+            <article class="summary-card"><div class="summary-icon sky"><i class="bi bi-person-slash"></i></div><div><p>Deactivated</p><strong id="userStatInactive">—</strong></div></article>
+          </section>
+
+          <section class="panel activity-filter-panel" aria-labelledby="userFilterHeading">
+            <div class="schedule-section-heading"><div><p class="panel-kicker">Find accounts</p><h2 id="userFilterHeading">Search and filter</h2></div></div>
+            <form id="userFilterForm" class="roomq-form" novalidate>
+              <label class="assignment-field"><span>Search</span><input type="search" id="userSearch" class="form-control" placeholder="Username, name, or email" maxlength="100" /></label>
+              <label class="assignment-field"><span>Role</span>
+                <select id="userRoleFilter" class="form-select">
+                  <option value="">All roles</option>
+                  <option value="admin">Administrator</option>
+                  <option value="staff">Staff</option>
+                  <option value="user">User</option>
+                </select>
+              </label>
+              <label class="assignment-field"><span>Status</span>
+                <select id="userStatusFilter" class="form-select">
+                  <option value="">All statuses</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Deactivated</option>
+                </select>
+              </label>
+              <div class="schedule-form-actions"><button type="submit" class="btn btn-primary assignment-submit"><i class="bi bi-funnel"></i> Apply filters</button></div>
+            </form>
+            <p id="userFeedback" class="assignment-feedback" role="status"></p>
+          </section>
+
+          <section class="panel" aria-labelledby="userTableHeading">
+            <div class="schedule-section-heading"><div><p class="panel-kicker">Administrator only</p><h2 id="userTableHeading">Accounts</h2></div></div>
+            <div class="responsive-table-wrap">
+              <table class="table table-hover align-middle roomq-table">
+                <thead><tr><th>Account</th><th>Email</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+                <tbody id="userTableBody"></tbody>
+              </table>
+            </div>
+            <p id="userEmpty" class="schedule-empty-message" hidden>No accounts match the selected filters.</p>
+          </section>
+
+          <dialog id="userDialog" class="conflict-details-dialog" aria-labelledby="userDialogHeading">
+            <form id="userForm" class="roomq-form" novalidate>
+              <div class="schedule-section-heading">
+                <div><p class="panel-kicker" id="userDialogKicker">New account</p><h2 id="userDialogHeading">Add user</h2></div>
+                <button type="button" id="userDialogClose" class="btn btn-outline-primary btn-sm" aria-label="Close"><i class="bi bi-x-lg"></i> Close</button>
+              </div>
+              <label class="assignment-field"><span>Username</span><input type="text" id="userUsername" class="form-control" minlength="3" maxlength="32" autocomplete="off" required /></label>
+              <label class="assignment-field"><span>Full name</span><input type="text" id="userFullName" class="form-control" maxlength="120" autocomplete="off" /></label>
+              <label class="assignment-field"><span>Email address</span><input type="email" id="userEmail" class="form-control" maxlength="190" autocomplete="off" /></label>
+              <label class="assignment-field"><span>Role</span>
+                <select id="userRole" class="form-select">
+                  <option value="staff">Staff</option>
+                  <option value="admin">Administrator</option>
+                  <option value="user">User (student)</option>
+                </select>
+              </label>
+              <label class="assignment-field"><span id="userPasswordLabel">Password (12 to 128 characters)</span><input type="password" id="userPassword" class="form-control" minlength="12" maxlength="128" autocomplete="new-password" /></label>
+              <label class="assignment-field"><span>Account status</span>
+                <select id="userActive" class="form-select">
+                  <option value="true">Active</option>
+                  <option value="false">Deactivated</option>
+                </select>
+              </label>
+              <div class="schedule-form-actions">
+                <button type="submit" class="btn btn-primary assignment-submit" id="userSave"><i class="bi bi-check2"></i> Save</button>
+                <button type="button" class="btn btn-outline-primary" id="userDialogCancel">Cancel</button>
+              </div>
+              <p id="userDialogFeedback" class="assignment-feedback" role="alert"></p>
+            </form>
+          </dialog>
+        </div>
+
+        <footer class="workspace-footer">
+          <div>RoomQ Classroom Management System · © 2026 NORSU-MC 1</div>
+          <div class="workspace-footer-links">
+            <a href="../user/classrooms.html#guide">Booking Policy</a>
+            <a href="activity-logs.html">Audit Trail</a>
+            <a href="conflicts.html" class="system-status-link"><span class="status-dot-live" aria-hidden="true"></span> System Operational</a>
+          </div>
+        </footer>
+      </main>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../shared/js/script.js"></script>
+    <script src="../shared/js/roomq-api.js"></script>
+    <script src="js/users.js"></script>
+  </body>
+</html>
