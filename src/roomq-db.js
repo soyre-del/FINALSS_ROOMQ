@@ -1,7 +1,7 @@
 const crypto = require('node:crypto');
-const path = require('node:path');
-const { DatabaseSync } = require('node:sqlite');
+const mysql = require('mysql2/promise');
 const { buildings } = require('../public/shared/js/roomq-data');
+const { ROLES } = require('./permissions');
 const {
   appliesOnDate,
   findScheduleOverlap,
@@ -9,291 +9,601 @@ const {
   validateScheduleInput
 } = require('./schedule-rules');
 
-function createDatabase(filePath = path.join(__dirname, '..', 'roomq.sqlite'), options = {}) {
-  const db = new DatabaseSync(filePath);
-  db.exec('PRAGMA foreign_keys = ON');
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS buildings (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL UNIQUE
-    );
-    CREATE TABLE IF NOT EXISTS floors (
-      building_id TEXT NOT NULL REFERENCES buildings(id) ON DELETE CASCADE,
-      id TEXT NOT NULL,
-      label TEXT NOT NULL,
-      crop_x REAL NOT NULL,
-      crop_y REAL NOT NULL,
-      crop_width REAL NOT NULL,
-      crop_height REAL NOT NULL,
-      PRIMARY KEY (building_id, id)
-    );
-    CREATE TABLE IF NOT EXISTS classrooms (
-      id TEXT PRIMARY KEY,
-      building_id TEXT NOT NULL,
-      floor_id TEXT NOT NULL,
-      region_id TEXT NOT NULL,
-      room_number INTEGER,
-      name TEXT,
-      x REAL NOT NULL,
-      y REAL NOT NULL,
-      width REAL NOT NULL,
-      height REAL NOT NULL,
-      capacity INTEGER,
-      facilities_json TEXT NOT NULL DEFAULT '[]',
-      UNIQUE (building_id, floor_id, region_id),
-      FOREIGN KEY (building_id, floor_id) REFERENCES floors(building_id, id) ON DELETE CASCADE
-    );
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY,
-      username TEXT NOT NULL UNIQUE,
-      password_salt TEXT NOT NULL,
-      password_hash TEXT NOT NULL,
-      role TEXT NOT NULL CHECK (role IN ('admin', 'user'))
-    );
-    CREATE TABLE IF NOT EXISTS auth_sessions (
-      token_hash TEXT PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      expires_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS schedules (
-      id INTEGER PRIMARY KEY,
-      kind TEXT NOT NULL CHECK (kind IN ('class', 'reservation')),
-      course TEXT NOT NULL DEFAULT '',
-      section TEXT NOT NULL DEFAULT '',
-      instructor TEXT NOT NULL DEFAULT '',
-      classroom_id TEXT REFERENCES classrooms(id) ON DELETE RESTRICT,
-      recurrence TEXT NOT NULL CHECK (recurrence IN ('once', 'weekly')),
-      date TEXT,
-      days_of_week TEXT NOT NULL DEFAULT '[]',
-      start_date TEXT,
-      end_date TEXT,
-      start_time TEXT NOT NULL,
-      end_time TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      CHECK (start_time < end_time),
-      CHECK (
-        (recurrence = 'once' AND date IS NOT NULL AND start_date IS NULL AND end_date IS NULL)
-        OR
-        (recurrence = 'weekly' AND date IS NULL AND start_date IS NOT NULL)
-      )
-    );
-    CREATE INDEX IF NOT EXISTS schedules_classroom_idx ON schedules(classroom_id);
-    CREATE INDEX IF NOT EXISTS schedules_date_idx ON schedules(date, start_date, end_date);
-    CREATE INDEX IF NOT EXISTS auth_sessions_expiry_idx ON auth_sessions(expires_at);
-  `);
+// Idempotent schema. Mirrors schema.sql; applied on every startup so the
+// application self-initializes against an empty MySQL database (Docker or
+// a freshly created test schema) without a separate migration step.
+const SCHEMA_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS buildings (
+    id VARCHAR(64) NOT NULL,
+    name VARCHAR(120) NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_buildings_name (name)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS floors (
+    building_id VARCHAR(64) NOT NULL,
+    id VARCHAR(32) NOT NULL,
+    label VARCHAR(80) NOT NULL,
+    crop_x DOUBLE NOT NULL,
+    crop_y DOUBLE NOT NULL,
+    crop_width DOUBLE NOT NULL,
+    crop_height DOUBLE NOT NULL,
+    PRIMARY KEY (building_id, id),
+    CONSTRAINT fk_floors_building FOREIGN KEY (building_id)
+      REFERENCES buildings (id) ON DELETE CASCADE ON UPDATE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS classrooms (
+    id VARCHAR(128) NOT NULL,
+    building_id VARCHAR(64) NOT NULL,
+    floor_id VARCHAR(32) NOT NULL,
+    region_id VARCHAR(64) NOT NULL,
+    room_number INT NULL DEFAULT NULL,
+    name VARCHAR(120) NULL DEFAULT NULL,
+    x DOUBLE NOT NULL,
+    y DOUBLE NOT NULL,
+    width DOUBLE NOT NULL,
+    height DOUBLE NOT NULL,
+    capacity INT UNSIGNED NULL DEFAULT NULL,
+    facilities_json VARCHAR(2000) NOT NULL DEFAULT ('[]'),
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_classrooms_region (building_id, floor_id, region_id),
+    CONSTRAINT fk_classrooms_floor FOREIGN KEY (building_id, floor_id)
+      REFERENCES floors (building_id, id) ON DELETE CASCADE ON UPDATE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS users (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    username VARCHAR(32) NOT NULL,
+    password_salt VARCHAR(64) NOT NULL,
+    password_hash VARCHAR(128) NOT NULL,
+    role ENUM('admin', 'staff', 'user') NOT NULL DEFAULT 'user',
+    full_name VARCHAR(120) NULL DEFAULT NULL,
+    email VARCHAR(190) NULL DEFAULT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_users_username (username),
+    UNIQUE KEY uq_users_email (email),
+    KEY idx_users_role_active (role, is_active)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS auth_sessions (
+    token_hash CHAR(64) NOT NULL,
+    user_id INT UNSIGNED NOT NULL,
+    expires_at BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (token_hash),
+    KEY idx_auth_sessions_user (user_id),
+    KEY idx_auth_sessions_expiry (expires_at),
+    CONSTRAINT fk_auth_sessions_user FOREIGN KEY (user_id)
+      REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS schedules (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    kind ENUM('class', 'reservation') NOT NULL,
+    course VARCHAR(120) NOT NULL DEFAULT '',
+    section VARCHAR(64) NOT NULL DEFAULT '',
+    instructor VARCHAR(120) NOT NULL DEFAULT '',
+    classroom_id VARCHAR(128) NULL DEFAULT NULL,
+    recurrence ENUM('once', 'weekly') NOT NULL,
+    date DATE NULL DEFAULT NULL,
+    days_of_week VARCHAR(64) NOT NULL DEFAULT ('[]'),
+    start_date DATE NULL DEFAULT NULL,
+    end_date DATE NULL DEFAULT NULL,
+    start_time CHAR(5) NOT NULL,
+    end_time CHAR(5) NOT NULL,
+    created_by_user_id INT UNSIGNED NULL DEFAULT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_schedules_classroom (classroom_id),
+    KEY idx_schedules_dates (date, start_date, end_date),
+    KEY idx_schedules_created_by (created_by_user_id),
+    CONSTRAINT fk_schedules_classroom FOREIGN KEY (classroom_id)
+      REFERENCES classrooms (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_schedules_created_by FOREIGN KEY (created_by_user_id)
+      REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT chk_schedules_time_order CHECK (start_time < end_time),
+    CONSTRAINT chk_schedules_recurrence CHECK (
+      (recurrence = 'once' AND date IS NOT NULL AND start_date IS NULL AND end_date IS NULL)
+      OR
+      (recurrence = 'weekly' AND date IS NULL AND start_date IS NOT NULL)
+    )
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS activity_logs (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    actor_user_id INT UNSIGNED NULL DEFAULT NULL,
+    actor_username VARCHAR(32) NOT NULL,
+    action ENUM('created', 'updated', 'deleted', 'registered', 'signed_in', 'signed_out') NOT NULL,
+    entity_type ENUM('schedule', 'reservation', 'user', 'session') NOT NULL,
+    entity_id VARCHAR(64) NULL DEFAULT NULL,
+    classroom_id VARCHAR(128) NULL DEFAULT NULL,
+    previous_json LONGTEXT NULL DEFAULT NULL,
+    updated_json LONGTEXT NULL DEFAULT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_activity_logs_created (created_at, id),
+    KEY idx_activity_logs_actor (actor_username),
+    KEY idx_activity_logs_user (actor_user_id),
+    KEY idx_activity_logs_classroom (classroom_id),
+    CONSTRAINT fk_activity_logs_user FOREIGN KEY (actor_user_id)
+      REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_activity_logs_classroom FOREIGN KEY (classroom_id)
+      REFERENCES classrooms (id) ON DELETE SET NULL ON UPDATE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+];
 
-  migrateUserRoles(db);
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS activity_logs (
-      id INTEGER PRIMARY KEY,
-      actor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-      actor_username TEXT NOT NULL,
-      action TEXT NOT NULL CHECK (
-        action IN ('created', 'updated', 'deleted', 'registered', 'signed_in', 'signed_out')
-      ),
-      entity_type TEXT NOT NULL CHECK (entity_type IN ('schedule', 'reservation', 'user', 'session')),
-      entity_id TEXT,
-      classroom_id TEXT REFERENCES classrooms(id) ON DELETE SET NULL,
-      previous_json TEXT,
-      updated_json TEXT,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE INDEX IF NOT EXISTS activity_logs_created_idx ON activity_logs(created_at, id);
-    CREATE INDEX IF NOT EXISTS activity_logs_actor_idx ON activity_logs(actor_username);
-  `);
-  seedBuildings(db);
-  seedAdmin(db, options);
+function readEnvConfig() {
+  return {
+    host: process.env.ROOMQ_DB_HOST || '127.0.0.1',
+    port: Number(process.env.ROOMQ_DB_PORT) || 3306,
+    user: process.env.ROOMQ_DB_USER || 'roomq',
+    password: process.env.ROOMQ_DB_PASSWORD || '',
+    database: process.env.ROOMQ_DB_NAME || 'roomq'
+  };
+}
 
-  function migrateUserRoles(database) {
-    const schema = database.prepare(
-      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'"
-    ).get();
-    if (schema.sql.includes("'user'")) {
-      return;
-    }
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-    database.exec('PRAGMA foreign_keys = OFF');
+// Wait for the MySQL server to accept connections. In Docker the backend can
+// start before the database is ready even with a healthcheck, so retry.
+async function waitForServer(connectionConfig, { attempts = 30, delayMs = 2000 } = {}) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
-      database.exec('BEGIN IMMEDIATE');
-      database.exec(`
-        ALTER TABLE auth_sessions RENAME TO auth_sessions_legacy;
-        ALTER TABLE users RENAME TO users_legacy;
-        CREATE TABLE users (
-          id INTEGER PRIMARY KEY,
-          username TEXT NOT NULL UNIQUE,
-          password_salt TEXT NOT NULL,
-          password_hash TEXT NOT NULL,
-          role TEXT NOT NULL CHECK (role IN ('admin', 'user'))
-        );
-        CREATE TABLE auth_sessions (
-          token_hash TEXT PRIMARY KEY,
-          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-          expires_at INTEGER NOT NULL
-        );
-        INSERT INTO users (id, username, password_salt, password_hash, role)
-          SELECT id, username, password_salt, password_hash, role FROM users_legacy;
-        INSERT INTO auth_sessions (token_hash, user_id, expires_at)
-          SELECT token_hash, user_id, expires_at FROM auth_sessions_legacy;
-        DROP TABLE auth_sessions_legacy;
-        DROP TABLE users_legacy;
-        CREATE INDEX auth_sessions_expiry_idx ON auth_sessions(expires_at);
-      `);
-      database.exec('COMMIT');
+      const connection = await mysql.createConnection(connectionConfig);
+      await connection.end();
+      return;
     } catch (error) {
-      database.exec('ROLLBACK');
-      throw error;
-    } finally {
-      database.exec('PRAGMA foreign_keys = ON');
+      lastError = error;
+      if (attempt < attempts) {
+        await sleep(delayMs);
+      }
     }
   }
+  throw new Error(`Could not connect to MySQL at ${connectionConfig.host}:${connectionConfig.port} - ${lastError.message}`);
+}
 
-  function seedBuildings(database) {
+async function createDatabase(options = {}) {
+  const config = { ...readEnvConfig(), ...options };
+  const { host, port, user, password, database } = config;
+  const serverConfig = { host, port, user, password, multipleStatements: false };
+
+  await waitForServer(serverConfig, {
+    attempts: options.connectAttempts || Number(process.env.ROOMQ_DB_CONNECT_ATTEMPTS) || 30,
+    delayMs: options.connectDelayMs || 2000
+  });
+
+  // Ensure the target database exists before pooling against it.
+  const bootstrap = await mysql.createConnection(serverConfig);
+  await bootstrap.query(
+    `CREATE DATABASE IF NOT EXISTS \`${database.replace(/`/g, '')}\` ` +
+    'CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
+  );
+  await bootstrap.end();
+
+  const pool = mysql.createPool({
+    host,
+    port,
+    user,
+    password,
+    database,
+    waitForConnections: true,
+    connectionLimit: Number(process.env.ROOMQ_DB_POOL_SIZE) || 10,
+    multipleStatements: false,
+    dateStrings: true,
+    charset: 'utf8mb4_unicode_ci'
+  });
+
+  for (const statement of SCHEMA_STATEMENTS) {
+    await pool.query(statement);
+  }
+
+  // Databases created before staff accounts existed have a users table whose
+  // role column only allows admin/user and which lacks the profile and status
+  // columns. Existing rows (and their roles) are preserved; new columns get
+  // safe defaults, so every existing account stays active.
+  const [roleColumn] = await pool.query(
+    `SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'role'`
+  );
+  if (roleColumn.length && !roleColumn[0].COLUMN_TYPE.includes("'staff'")) {
+    await pool.query(
+      "ALTER TABLE users MODIFY COLUMN role ENUM('admin', 'staff', 'user') NOT NULL DEFAULT 'user'"
+    );
+  }
+  const [profileColumns] = await pool.query(
+    `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
+       AND COLUMN_NAME IN ('full_name', 'email', 'is_active', 'updated_at')`
+  );
+  if (profileColumns.length < 4) {
+    const present = new Set(profileColumns.map((column) => column.COLUMN_NAME));
+    const additions = [];
+    if (!present.has('full_name')) additions.push('ADD COLUMN full_name VARCHAR(120) NULL DEFAULT NULL');
+    if (!present.has('email')) additions.push('ADD COLUMN email VARCHAR(190) NULL DEFAULT NULL');
+    if (!present.has('is_active')) additions.push('ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1');
+    if (!present.has('updated_at')) {
+      additions.push('ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+    }
+    await pool.query(`ALTER TABLE users ${additions.join(', ')}`);
+  }
+  const [userIndexes] = await pool.query(
+    `SELECT INDEX_NAME FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
+       AND INDEX_NAME IN ('uq_users_email', 'idx_users_role_active')`
+  );
+  const presentIndexes = new Set(userIndexes.map((index) => index.INDEX_NAME));
+  if (!presentIndexes.has('uq_users_email')) {
+    await pool.query('ALTER TABLE users ADD UNIQUE KEY uq_users_email (email)');
+  }
+  if (!presentIndexes.has('idx_users_role_active')) {
+    await pool.query('ALTER TABLE users ADD KEY idx_users_role_active (role, is_active)');
+  }
+
+  // Databases created before reservations recorded their owner lack this
+  // column; CREATE TABLE IF NOT EXISTS does not alter existing tables.
+  const [ownerColumn] = await pool.query(
+    `SELECT 1 FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'schedules'
+       AND COLUMN_NAME = 'created_by_user_id'`
+  );
+  if (!ownerColumn.length) {
+    await pool.query(`
+      ALTER TABLE schedules
+        ADD COLUMN created_by_user_id INT UNSIGNED NULL DEFAULT NULL AFTER end_time,
+        ADD KEY idx_schedules_created_by (created_by_user_id),
+        ADD CONSTRAINT fk_schedules_created_by FOREIGN KEY (created_by_user_id)
+          REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE
+    `);
+  }
+
+  const run = async (sql, values = [], executor = pool) => {
+    const [result] = await executor.execute(sql, values);
+    return result;
+  };
+  const all = async (sql, values = [], executor = pool) => {
+    const [rows] = await executor.execute(sql, values);
+    return rows;
+  };
+  const get = async (sql, values = [], executor = pool) => {
+    const rows = await all(sql, values, executor);
+    return rows[0];
+  };
+
+  await seedBuildings();
+  await seedAdmin(options);
+
+  async function seedBuildings() {
     const expectedBuildingIds = new Set();
     const expectedFloorIds = new Set();
     const expectedClassroomIds = new Set();
-    const insertBuilding = database.prepare(
-      'INSERT INTO buildings (id, name) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name'
-    );
-    const insertFloor = database.prepare(`
-      INSERT INTO floors (building_id, id, label, crop_x, crop_y, crop_width, crop_height)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(building_id, id) DO UPDATE SET
-        label = excluded.label, crop_x = excluded.crop_x, crop_y = excluded.crop_y,
-        crop_width = excluded.crop_width, crop_height = excluded.crop_height
-    `);
-    const insertClassroom = database.prepare(`
-      INSERT INTO classrooms (
-        id, building_id, floor_id, region_id, room_number, name, x, y, width, height
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET
-        building_id = excluded.building_id, floor_id = excluded.floor_id,
-        region_id = excluded.region_id, room_number = excluded.room_number,
-        name = excluded.name, x = excluded.x, y = excluded.y,
-        width = excluded.width, height = excluded.height
-    `);
 
     for (const building of buildings) {
       expectedBuildingIds.add(building.id);
-      insertBuilding.run(building.id, building.name);
+      await run(
+        'INSERT INTO buildings (id, name) VALUES (?, ?) ' +
+        'ON DUPLICATE KEY UPDATE name = VALUES(name)',
+        [building.id, building.name]
+      );
       for (const floor of building.floors) {
         expectedFloorIds.add(`${building.id}:${floor.id}`);
-        insertFloor.run(
-          building.id,
-          floor.id,
-          floor.label,
-          floor.crop.x,
-          floor.crop.y,
-          floor.crop.width,
-          floor.crop.height
+        await run(
+          `INSERT INTO floors (building_id, id, label, crop_x, crop_y, crop_width, crop_height)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE
+             label = VALUES(label), crop_x = VALUES(crop_x), crop_y = VALUES(crop_y),
+             crop_width = VALUES(crop_width), crop_height = VALUES(crop_height)`,
+          [building.id, floor.id, floor.label, floor.crop.x, floor.crop.y,
+            floor.crop.width, floor.crop.height]
         );
-        floor.regions.forEach((region, index) => {
+        let index = 0;
+        for (const region of floor.regions) {
           const roomNumber = region.roomNumber !== undefined
             ? region.roomNumber
             : Number(floor.id) * 100 + index + 1;
           const classroomId = `${building.id}-${floor.id}-${region.id}`;
           expectedClassroomIds.add(classroomId);
-          insertClassroom.run(
-            classroomId,
-            building.id,
-            floor.id,
-            region.id,
-            Number.isInteger(roomNumber) ? roomNumber : null,
-            region.name || null,
-            region.x,
-            region.y,
-            region.width,
-            region.height
+          await run(
+            `INSERT INTO classrooms
+               (id, building_id, floor_id, region_id, room_number, name, x, y, width, height)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE
+               building_id = VALUES(building_id), floor_id = VALUES(floor_id),
+               region_id = VALUES(region_id), room_number = VALUES(room_number),
+               name = VALUES(name), x = VALUES(x), y = VALUES(y),
+               width = VALUES(width), height = VALUES(height)`,
+            [classroomId, building.id, floor.id, region.id,
+              Number.isInteger(roomNumber) ? roomNumber : null,
+              region.name || null, region.x, region.y, region.width, region.height]
           );
-        });
+          index += 1;
+        }
       }
     }
 
-    for (const row of database.prepare('SELECT id FROM classrooms').all()) {
+    // Prune anything no longer present in the mapped layout.
+    for (const row of await all('SELECT id FROM classrooms')) {
       if (!expectedClassroomIds.has(row.id)) {
-        database.prepare('UPDATE schedules SET classroom_id = NULL WHERE classroom_id = ?').run(row.id);
-        database.prepare('DELETE FROM classrooms WHERE id = ?').run(row.id);
+        await run('UPDATE schedules SET classroom_id = NULL WHERE classroom_id = ?', [row.id]);
+        await run('DELETE FROM classrooms WHERE id = ?', [row.id]);
       }
     }
-    for (const row of database.prepare('SELECT building_id, id FROM floors').all()) {
+    for (const row of await all('SELECT building_id, id FROM floors')) {
       if (!expectedFloorIds.has(`${row.building_id}:${row.id}`)) {
-        database.prepare('DELETE FROM floors WHERE building_id = ? AND id = ?')
-          .run(row.building_id, row.id);
+        await run('DELETE FROM floors WHERE building_id = ? AND id = ?', [row.building_id, row.id]);
       }
     }
-    for (const row of database.prepare('SELECT id FROM buildings').all()) {
+    for (const row of await all('SELECT id FROM buildings')) {
       if (!expectedBuildingIds.has(row.id)) {
-        database.prepare('DELETE FROM buildings WHERE id = ?').run(row.id);
+        await run('DELETE FROM buildings WHERE id = ?', [row.id]);
       }
     }
   }
 
-  function seedAdmin(database, { username, password } = {}) {
-    const existing = database.prepare('SELECT id FROM users LIMIT 1').get();
+  async function seedAdmin({ adminUsername: seedUsername, adminPassword: seedPassword } = {}) {
+    const existing = await get('SELECT id FROM users LIMIT 1');
     if (existing) {
       return;
     }
-    const adminUsername = username || process.env.ROOMQ_ADMIN_USERNAME || 'admin';
-    const adminPassword = password || process.env.ROOMQ_ADMIN_PASSWORD;
+    const adminUsername = seedUsername || process.env.ROOMQ_ADMIN_USERNAME || 'admin';
+    const adminPassword = seedPassword || process.env.ROOMQ_ADMIN_PASSWORD;
     if (!adminPassword || adminPassword.length < 12) {
       throw new Error('Set ROOMQ_ADMIN_PASSWORD to a password of at least 12 characters before starting RoomQ.');
     }
     const salt = crypto.randomBytes(16);
     const hash = crypto.scryptSync(adminPassword, salt, 64);
-    database.prepare(`
-      INSERT INTO users (username, password_salt, password_hash, role)
-      VALUES (?, ?, ?, 'admin')
-    `).run(adminUsername, salt.toString('hex'), hash.toString('hex'));
+    await run(
+      `INSERT INTO users (username, password_salt, password_hash, role)
+       VALUES (?, ?, ?, 'admin')`,
+      [adminUsername, salt.toString('hex'), hash.toString('hex')]
+    );
   }
 
-  function getUser(username) {
-    return db.prepare(`
-      SELECT id, username, password_salt, password_hash, role
-      FROM users WHERE username = ?
-    `).get(username);
+  const USER_FIELDS =
+    'id, username, password_salt, password_hash, role, full_name, email, is_active, created_at, updated_at';
+
+  // Account details that are safe to send to a browser (never the password).
+  function mapUser(row) {
+    return {
+      id: row.id,
+      username: row.username,
+      fullName: row.full_name,
+      email: row.email,
+      role: row.role,
+      isActive: Boolean(row.is_active),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
   }
 
-  function createUser(username, password, role = 'user') {
-    if (!['admin', 'user'].includes(role)) {
+  // What the audit trail keeps about an account: details, never credentials.
+  const userSnapshot = (user) => ({
+    username: user.username,
+    fullName: user.fullName,
+    email: user.email,
+    role: user.role,
+    isActive: user.isActive
+  });
+
+  function hashPassword(password) {
+    const salt = crypto.randomBytes(16);
+    return {
+      salt: salt.toString('hex'),
+      hash: crypto.scryptSync(password, salt, 64).toString('hex')
+    };
+  }
+
+  const conflictError = (message) => Object.assign(new Error(message), { status: 409 });
+  const notFoundError = () => Object.assign(new Error('User not found.'), { status: 404 });
+
+  // Turns MySQL's duplicate-key error into a friendly 409 naming the field.
+  function duplicateUserError(error) {
+    if (error.code !== 'ER_DUP_ENTRY') return error;
+    return String(error.sqlMessage || error.message).includes('uq_users_email')
+      ? conflictError('That email address is already in use.')
+      : conflictError('That username is already in use.');
+  }
+
+  async function getUser(username) {
+    return get(`SELECT ${USER_FIELDS} FROM users WHERE username = ?`, [username]);
+  }
+
+  async function getUserById(id, executor = pool) {
+    const row = await get(`SELECT ${USER_FIELDS} FROM users WHERE id = ?`, [id], executor);
+    return row ? mapUser(row) : null;
+  }
+
+  async function createUser(username, password, role = 'user', profile = {}) {
+    if (!ROLES.includes(role)) {
       throw new Error('User role is invalid.');
     }
-    const salt = crypto.randomBytes(16);
-    const hash = crypto.scryptSync(password, salt, 64);
-    const result = db.prepare(`
-      INSERT INTO users (username, password_salt, password_hash, role)
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT(username) DO NOTHING
-    `).run(username, salt.toString('hex'), hash.toString('hex'), role);
-    return result.changes ? getUser(username) : null;
+    const { salt, hash } = hashPassword(password);
+    try {
+      await run(
+        `INSERT INTO users (username, password_salt, password_hash, role, full_name, email, is_active)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [username, salt, hash, role, profile.fullName || null, profile.email || null,
+          profile.isActive === false ? 0 : 1]
+      );
+    } catch (error) {
+      if (error.code === 'ER_DUP_ENTRY' && !String(error.sqlMessage).includes('uq_users_email')) {
+        return null; // username already taken
+      }
+      throw duplicateUserError(error);
+    }
+    return getUser(username);
   }
 
-  function createSession(userId, tokenHash, expiresAt) {
-    db.prepare(`
-      INSERT INTO auth_sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)
-    `).run(tokenHash, userId, expiresAt);
+  async function listUsers({ q, role, status } = {}) {
+    const conditions = [];
+    const values = [];
+    if (q) {
+      const like = `%${String(q).replace(/[\\%_]/g, '\\$&')}%`;
+      conditions.push('(username LIKE ? OR full_name LIKE ? OR email LIKE ?)');
+      values.push(like, like, like);
+    }
+    if (role) {
+      conditions.push('role = ?');
+      values.push(role);
+    }
+    if (status === 'active' || status === 'inactive') {
+      conditions.push('is_active = ?');
+      values.push(status === 'active' ? 1 : 0);
+    }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const rows = await all(
+      `SELECT ${USER_FIELDS} FROM users ${where} ORDER BY is_active DESC, role, username`,
+      values
+    );
+    return rows.map(mapUser);
   }
 
-  function findSession(tokenHash) {
+  // Runs `work` in a transaction that first locks every active administrator
+  // row, so concurrent changes cannot each believe another admin remains.
+  async function withAdminGuard(work) {
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const admins = await all(
+        "SELECT id FROM users WHERE role = 'admin' AND is_active = 1 FOR UPDATE", [], connection
+      );
+      const result = await work(connection, admins.length);
+      await connection.commit();
+      return result;
+    } catch (error) {
+      await connection.rollback();
+      throw duplicateUserError(error);
+    } finally {
+      connection.release();
+    }
+  }
+
+  // Administrator edit of any account: profile, role, status, optional new
+  // password. Refuses to leave the system without an active administrator.
+  async function updateUser(id, changes, actor) {
+    return withAdminGuard(async (connection, activeAdmins) => {
+      const row = await get(`SELECT ${USER_FIELDS} FROM users WHERE id = ? FOR UPDATE`, [id], connection);
+      if (!row) throw notFoundError();
+      const previous = mapUser(row);
+      const next = {
+        fullName: changes.fullName !== undefined ? changes.fullName : previous.fullName,
+        email: changes.email !== undefined ? changes.email : previous.email,
+        role: changes.role !== undefined ? changes.role : previous.role,
+        isActive: changes.isActive !== undefined ? changes.isActive : previous.isActive
+      };
+      if (!ROLES.includes(next.role)) throw Object.assign(new Error('User role is invalid.'), { status: 400 });
+      const wasActiveAdmin = previous.role === 'admin' && previous.isActive;
+      const staysActiveAdmin = next.role === 'admin' && next.isActive;
+      if (wasActiveAdmin && !staysActiveAdmin && activeAdmins <= 1) {
+        throw conflictError('RoomQ must keep at least one active administrator. Make another account an administrator first.');
+      }
+      const sets = ['full_name = ?', 'email = ?', 'role = ?', 'is_active = ?'];
+      const values = [next.fullName, next.email, next.role, next.isActive ? 1 : 0];
+      if (changes.password) {
+        const { salt, hash } = hashPassword(changes.password);
+        sets.push('password_salt = ?', 'password_hash = ?');
+        values.push(salt, hash);
+      }
+      await run(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, [...values, id], connection);
+      // Deactivation and password resets end the account's open sessions.
+      if ((previous.isActive && !next.isActive) || changes.password) {
+        await run('DELETE FROM auth_sessions WHERE user_id = ?', [id], connection);
+      }
+      const updated = await getUserById(id, connection);
+      if (actor) {
+        await recordActivity(
+          actor, 'updated', 'user', id, null,
+          userSnapshot(previous),
+          { ...userSnapshot(updated), ...(changes.password ? { passwordReset: true } : {}) },
+          connection
+        );
+      }
+      return updated;
+    });
+  }
+
+  async function deleteUser(id, actor) {
+    return withAdminGuard(async (connection, activeAdmins) => {
+      const row = await get(`SELECT ${USER_FIELDS} FROM users WHERE id = ? FOR UPDATE`, [id], connection);
+      if (!row) throw notFoundError();
+      const previous = mapUser(row);
+      if (previous.role === 'admin' && previous.isActive && activeAdmins <= 1) {
+        throw conflictError('RoomQ must keep at least one active administrator. This account cannot be deleted.');
+      }
+      await run('DELETE FROM users WHERE id = ?', [id], connection);
+      if (actor) {
+        await recordActivity(actor, 'deleted', 'user', id, null, userSnapshot(previous), null, connection);
+      }
+      return previous;
+    });
+  }
+
+  // A signed-in account editing its own name and email. Role and status are
+  // deliberately not accepted here.
+  async function updateOwnProfile(id, { fullName, email }) {
+    const previous = await getUserById(id);
+    if (!previous) throw notFoundError();
+    try {
+      await run('UPDATE users SET full_name = ?, email = ? WHERE id = ?', [fullName, email, id]);
+    } catch (error) {
+      throw duplicateUserError(error);
+    }
+    const updated = await getUserById(id);
+    await recordActivity(
+      { id: updated.id, username: updated.username }, 'updated', 'user', id, null,
+      userSnapshot(previous), userSnapshot(updated)
+    );
+    return updated;
+  }
+
+  // Sets a new password and signs the account out everywhere except the
+  // session that made the change.
+  async function changePassword(id, newPassword, keepTokenHash) {
+    const { salt, hash } = hashPassword(newPassword);
+    await run('UPDATE users SET password_salt = ?, password_hash = ? WHERE id = ?', [salt, hash, id]);
+    await run(
+      'DELETE FROM auth_sessions WHERE user_id = ? AND token_hash <> ?',
+      [id, keepTokenHash || '']
+    );
+    const user = await getUserById(id);
+    await recordActivity(
+      { id: user.id, username: user.username }, 'updated', 'user', id, null,
+      null, { passwordChanged: true }
+    );
+  }
+
+  async function createSession(userId, tokenHash, expiresAt) {
+    await run(
+      'INSERT INTO auth_sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)',
+      [tokenHash, userId, expiresAt]
+    );
+  }
+
+  async function findSession(tokenHash) {
     const now = Date.now();
-    db.prepare('DELETE FROM auth_sessions WHERE expires_at <= ?').run(now);
-    return db.prepare(`
-      SELECT u.id, u.username, u.role
-      FROM auth_sessions s JOIN users u ON u.id = s.user_id
-      WHERE s.token_hash = ? AND s.expires_at > ?
-    `).get(tokenHash, now);
+    await run('DELETE FROM auth_sessions WHERE expires_at <= ?', [now]);
+    // Role and status are read from the database on every request, so a role
+    // change or deactivation takes effect immediately, not at next sign-in.
+    const row = await get(
+      `SELECT u.id, u.username, u.role, u.full_name, u.email
+       FROM auth_sessions s JOIN users u ON u.id = s.user_id
+       WHERE s.token_hash = ? AND s.expires_at > ? AND u.is_active = 1`,
+      [tokenHash, now]
+    );
+    return row
+      ? { id: row.id, username: row.username, role: row.role, fullName: row.full_name, email: row.email }
+      : undefined;
   }
 
-  function deleteSession(tokenHash) {
-    db.prepare('DELETE FROM auth_sessions WHERE token_hash = ?').run(tokenHash);
+  async function deleteSession(tokenHash) {
+    await run('DELETE FROM auth_sessions WHERE token_hash = ?', [tokenHash]);
   }
 
-  function listBuildings() {
-    const rows = db.prepare(`
+  async function listBuildings() {
+    const rows = await all(`
       SELECT b.id AS building_id, b.name AS building_name,
         f.id AS floor_id, f.label AS floor_label
       FROM buildings b LEFT JOIN floors f ON f.building_id = b.id
-      ORDER BY b.name, CAST(f.id AS INTEGER)
-    `).all();
+      ORDER BY b.name, CAST(f.id AS UNSIGNED)
+    `);
     const buildingMap = new Map();
     for (const row of rows) {
       if (!buildingMap.has(row.building_id)) {
@@ -332,7 +642,7 @@ function createDatabase(filePath = path.join(__dirname, '..', 'roomq.sqlite'), o
     };
   }
 
-  function listClassrooms(filters = {}) {
+  async function listClassrooms(filters = {}, executor = pool) {
     const conditions = [];
     const values = [];
     if (filters.buildingId) {
@@ -344,14 +654,14 @@ function createDatabase(filePath = path.join(__dirname, '..', 'roomq.sqlite'), o
       values.push(filters.floorId);
     }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    const rows = db.prepare(`
+    const rows = await all(`
       SELECT c.*, b.name AS building_name, f.label AS floor_label
       FROM classrooms c
       JOIN buildings b ON b.id = c.building_id
       JOIN floors f ON f.building_id = c.building_id AND f.id = c.floor_id
       ${where}
-      ORDER BY b.name, CAST(c.floor_id AS INTEGER), c.room_number, c.name
-    `).all(...values);
+      ORDER BY b.name, CAST(c.floor_id AS UNSIGNED), c.room_number, c.name
+    `, values, executor);
     return rows.map(mapClassroom);
   }
 
@@ -370,6 +680,8 @@ function createDatabase(filePath = path.join(__dirname, '..', 'roomq.sqlite'), o
       endDate: row.end_date,
       startTime: row.start_time,
       endTime: row.end_time,
+      createdByUserId: row.created_by_user_id,
+      createdByUsername: row.created_by_username,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       classroom: row.classroom_id
@@ -392,14 +704,16 @@ function createDatabase(filePath = path.join(__dirname, '..', 'roomq.sqlite'), o
   const scheduleSelect = `
     SELECT s.*, c.building_id, b.name AS building_name, c.floor_id,
       f.label AS floor_label, c.region_id, c.room_number,
-      c.name AS classroom_name, c.capacity, c.facilities_json
+      c.name AS classroom_name, c.capacity, c.facilities_json,
+      u.username AS created_by_username
     FROM schedules s
+    LEFT JOIN users u ON u.id = s.created_by_user_id
     LEFT JOIN classrooms c ON c.id = s.classroom_id
     LEFT JOIN buildings b ON b.id = c.building_id
     LEFT JOIN floors f ON f.building_id = c.building_id AND f.id = c.floor_id
   `;
 
-  function listSchedules(filters = {}) {
+  async function listSchedules(filters = {}, executor = pool) {
     const conditions = [];
     const values = [];
     if (filters.kind) {
@@ -418,28 +732,36 @@ function createDatabase(filePath = path.join(__dirname, '..', 'roomq.sqlite'), o
       conditions.push('s.classroom_id = ?');
       values.push(filters.classroomId);
     }
+    if (filters.createdByUserId) {
+      conditions.push('s.created_by_user_id = ?');
+      values.push(filters.createdByUserId);
+    }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    return db.prepare(`
+    // `lock` turns this into a current (locking) read of the schedule rows so a
+    // transaction sees bookings committed after it started.
+    const rows = await all(`
       ${scheduleSelect} ${where}
       ORDER BY COALESCE(s.date, s.start_date), s.start_time, s.id
-    `).all(...values).map(mapSchedule);
+      ${filters.lock ? 'FOR UPDATE OF s' : ''}
+    `, values, executor);
+    return rows.map(mapSchedule);
   }
 
-  function getSchedule(id) {
-    const row = db.prepare(`${scheduleSelect} WHERE s.id = ?`).get(id);
+  async function getSchedule(id, executor = pool) {
+    const row = await get(`${scheduleSelect} WHERE s.id = ?`, [id], executor);
     return row ? mapSchedule(row) : null;
   }
 
-  function recordActivity(actor, action, entityType, entityId, classroomId, previous, updated) {
+  async function recordActivity(actor, action, entityType, entityId, classroomId, previous, updated, executor = pool) {
     if (!actor || !Number.isSafeInteger(actor.id) || typeof actor.username !== 'string') {
       throw new TypeError('An authenticated user is required to record activity.');
     }
-    db.prepare(`
+    await run(`
       INSERT INTO activity_logs (
         actor_user_id, actor_username, action, entity_type, entity_id, classroom_id,
         previous_json, updated_json
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       actor.id,
       actor.username,
       action,
@@ -448,10 +770,10 @@ function createDatabase(filePath = path.join(__dirname, '..', 'roomq.sqlite'), o
       classroomId || null,
       previous === null || previous === undefined ? null : JSON.stringify(previous),
       updated === null || updated === undefined ? null : JSON.stringify(updated)
-    );
+    ], executor);
   }
 
-  function listActivityLogs(filters = {}) {
+  async function listActivityLogs(filters = {}) {
     const conditions = [];
     const values = [];
     if (filters.startAt) {
@@ -473,7 +795,9 @@ function createDatabase(filePath = path.join(__dirname, '..', 'roomq.sqlite'), o
       throw new TypeError('Activity log pagination values are invalid.');
     }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    return db.prepare(`
+    // limit/offset are validated safe integers; inlined because MySQL prepared
+    // statements reject bound LIMIT/OFFSET placeholders.
+    const rows = await all(`
       SELECT a.*, c.building_id, b.name AS building_name, c.floor_id,
         f.label AS floor_label, c.room_number, c.name AS classroom_name
       FROM activity_logs a
@@ -482,8 +806,9 @@ function createDatabase(filePath = path.join(__dirname, '..', 'roomq.sqlite'), o
       LEFT JOIN floors f ON f.building_id = c.building_id AND f.id = c.floor_id
       ${where}
       ORDER BY a.id DESC
-      LIMIT ? OFFSET ?
-    `).all(...values, limit, offset).map((row) => ({
+      LIMIT ${limit} OFFSET ${offset}
+    `, values);
+    return rows.map((row) => ({
       id: row.id,
       actorUsername: row.actor_username,
       action: row.action,
@@ -520,18 +845,26 @@ function createDatabase(filePath = path.join(__dirname, '..', 'roomq.sqlite'), o
     };
   }
 
-  function validateAndCheckConflict(input, excludeId) {
+  async function validateAndCheckConflict(input, excludeId, executor) {
     const validated = validateScheduleInput(input);
     if (validated.classroomId) {
-      const classroom = db.prepare('SELECT id FROM classrooms WHERE id = ?').get(validated.classroomId);
+      // Lock the classroom row before anything else in the transaction. Every
+      // booking for this room takes the same lock, so concurrent bookings are
+      // serialized: the second waits until the first commits or rolls back.
+      const classroom = await get(
+        'SELECT id FROM classrooms WHERE id = ? FOR UPDATE', [validated.classroomId], executor
+      );
       if (!classroom) {
-        throw new Error('The selected classroom does not exist in the room database.');
-      }
-      const existing = listSchedules()
-        .filter((schedule) =>
-          schedule.id !== excludeId &&
-          schedule.classroomId === validated.classroomId
+        throw Object.assign(
+          new Error('The selected classroom does not exist in the room database.'),
+          { status: 400 }
         );
+      }
+      // Locking (current) read, so bookings committed by a transaction we just
+      // waited on are visible here rather than hidden by a stale snapshot.
+      const existing = (await listSchedules(
+        { classroomId: validated.classroomId, lock: true }, executor
+      )).filter((schedule) => schedule.id !== excludeId);
       const conflict = existing.find((schedule) =>
         findScheduleOverlap(toRuleRecord(schedule), validated)
       );
@@ -554,11 +887,12 @@ function createDatabase(filePath = path.join(__dirname, '..', 'roomq.sqlite'), o
     return validated;
   }
 
-  function saveSchedule(input, id, actor) {
-    db.exec('BEGIN IMMEDIATE');
+  async function saveSchedule(input, id, actor) {
+    const connection = await pool.getConnection();
     try {
-      const validated = validateAndCheckConflict(input, id);
-      const previous = id ? getSchedule(id) : null;
+      await connection.beginTransaction();
+      const validated = await validateAndCheckConflict(input, id, connection);
+      const previous = id ? await getSchedule(id, connection) : null;
       const values = [
         validated.kind,
         validated.course,
@@ -575,74 +909,92 @@ function createDatabase(filePath = path.join(__dirname, '..', 'roomq.sqlite'), o
       ];
       let scheduleId = id;
       if (id) {
-        const result = db.prepare(`
+        const result = await run(`
           UPDATE schedules SET kind = ?, course = ?, section = ?, instructor = ?,
             classroom_id = ?, recurrence = ?, date = ?, days_of_week = ?,
             start_date = ?, end_date = ?, start_time = ?, end_time = ?,
             updated_at = CURRENT_TIMESTAMP
           WHERE id = ?
-        `).run(...values, id);
-        if (!result.changes) {
+        `, [...values, id], connection);
+        if (!result.affectedRows) {
           throw Object.assign(new Error('Schedule not found.'), { status: 404 });
         }
       } else {
-        const result = db.prepare(`
+        const result = await run(`
           INSERT INTO schedules (
             kind, course, section, instructor, classroom_id, recurrence, date,
-            days_of_week, start_date, end_date, start_time, end_time
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(...values);
-        scheduleId = Number(result.lastInsertRowid);
+            days_of_week, start_date, end_date, start_time, end_time, created_by_user_id
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [...values, actor && Number.isSafeInteger(actor.id) ? actor.id : null], connection);
+        scheduleId = Number(result.insertId);
       }
-      const schedule = getSchedule(scheduleId);
+      const schedule = await getSchedule(scheduleId, connection);
       if (actor) {
-        recordActivity(
+        await recordActivity(
           actor,
           id ? 'updated' : 'created',
           schedule.kind === 'reservation' ? 'reservation' : 'schedule',
           schedule.id,
           schedule.classroomId,
           previous,
-          schedule
+          schedule,
+          connection
         );
       }
-      db.exec('COMMIT');
+      await connection.commit();
       return schedule;
     } catch (error) {
-      db.exec('ROLLBACK');
+      await connection.rollback();
       throw error;
+    } finally {
+      connection.release();
     }
   }
 
-  function deleteSchedule(id, actor) {
-    db.exec('BEGIN IMMEDIATE');
+  async function deleteSchedule(id, actor) {
+    const connection = await pool.getConnection();
     try {
-      const previous = getSchedule(id);
+      await connection.beginTransaction();
+      const previous = await getSchedule(id, connection);
       if (!previous) {
-        db.exec('COMMIT');
+        await connection.commit();
         return false;
       }
-      const result = db.prepare('DELETE FROM schedules WHERE id = ?').run(id);
-      if (result.changes && actor) {
-        recordActivity(
+      const result = await run('DELETE FROM schedules WHERE id = ?', [id], connection);
+      if (result.affectedRows && actor) {
+        await recordActivity(
           actor,
           'deleted',
           previous.kind === 'reservation' ? 'reservation' : 'schedule',
           previous.id,
           previous.classroomId,
           previous,
-          null
+          null,
+          connection
         );
       }
-      db.exec('COMMIT');
-      return result.changes > 0;
+      await connection.commit();
+      return result.affectedRows > 0;
     } catch (error) {
-      db.exec('ROLLBACK');
+      await connection.rollback();
       throw error;
+    } finally {
+      connection.release();
     }
   }
 
-  function getAvailability(filters) {
+  // Reservations owned by a user that have not yet ended (date on/after today).
+  async function countActiveReservations(userId, today, excludeId = null) {
+    const row = await get(`
+      SELECT COUNT(*) AS total FROM schedules
+      WHERE kind = 'reservation' AND created_by_user_id = ?
+        AND COALESCE(end_date, date, start_date) >= ?
+        AND (? IS NULL OR id <> ?)
+    `, [userId, today, excludeId, excludeId]);
+    return Number(row.total);
+  }
+
+  async function getAvailability(filters) {
     const { date, startTime, endTime } = filters;
     if (!isValidDate(date) ||
         !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(startTime || '') ||
@@ -653,8 +1005,8 @@ function createDatabase(filePath = path.join(__dirname, '..', 'roomq.sqlite'), o
         { status: 400 }
       );
     }
-    const rooms = listClassrooms(filters);
-    const schedules = listSchedules();
+    const rooms = await listClassrooms(filters);
+    const schedules = await listSchedules();
     return rooms.map((classroom) => {
       const matching = schedules.filter((schedule) =>
         schedule.classroomId === classroom.id &&
@@ -676,8 +1028,8 @@ function createDatabase(filePath = path.join(__dirname, '..', 'roomq.sqlite'), o
     });
   }
 
-  function getConflicts(filters = {}) {
-    const schedules = listSchedules().filter((schedule) => schedule.classroomId);
+  async function getConflicts(filters = {}) {
+    const schedules = (await listSchedules()).filter((schedule) => schedule.classroomId);
     const results = [];
     for (let leftIndex = 0; leftIndex < schedules.length; leftIndex += 1) {
       for (let rightIndex = leftIndex + 1; rightIndex < schedules.length; rightIndex += 1) {
@@ -709,47 +1061,54 @@ function createDatabase(filePath = path.join(__dirname, '..', 'roomq.sqlite'), o
     return results;
   }
 
-  function getDashboard(date = new Date().toISOString().slice(0, 10)) {
-    const schedules = listSchedules({ kind: 'class' });
+  async function getDashboard(date = new Date().toISOString().slice(0, 10)) {
+    const schedules = await listSchedules({ kind: 'class' });
     const todaySchedules = schedules.filter((schedule) => appliesOnDate(schedule, date));
     const assignedClassrooms = new Set(
       schedules.filter((schedule) => schedule.classroomId).map((schedule) => schedule.classroomId)
     );
-    const classrooms = listClassrooms();
+    const classrooms = await listClassrooms();
+    const [conflicts, availability] = await Promise.all([
+      getConflicts(),
+      getAvailability({ date, startTime: '00:00', endTime: '23:59' })
+    ]);
     return {
       totalClassrooms: classrooms.length,
       totalScheduledClasses: schedules.length,
       totalAssignedClassrooms: assignedClassrooms.size,
       todaysClasses: todaySchedules.length,
       unassignedClasses: schedules.filter((schedule) => !schedule.classroomId).length,
-      totalConflicts: getConflicts().length,
-      availableClassrooms: getAvailability({
-        date,
-        startTime: '00:00',
-        endTime: '23:59'
-      }).filter((room) => room.status === 'available').length
+      totalConflicts: conflicts.length,
+      availableClassrooms: availability.filter((room) => room.status === 'available').length
     };
   }
 
   return {
-    close: () => db.close(),
+    close: () => pool.end(),
+    changePassword,
+    countActiveReservations,
     createUser,
     createSession,
     deleteSchedule,
     deleteSession,
+    deleteUser,
     findSession,
     getAvailability,
     getConflicts,
     getDashboard,
     getSchedule,
     getUser,
+    getUserById,
     listActivityLogs,
     listBuildings,
     listClassrooms,
     listSchedules,
+    listUsers,
     recordActivity,
-    saveSchedule
+    saveSchedule,
+    updateOwnProfile,
+    updateUser
   };
 }
 
-module.exports = { createDatabase };
+module.exports = { createDatabase, readEnvConfig };
