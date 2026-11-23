@@ -5650,17 +5650,20 @@ body,
   border-radius: 18px;
   overflow: hidden;
   background-color: var(--hero-navy-solid);
-  /* Solid #14315E behind text (0-38%), long smooth fade through #2F5A94 into #E8F0F7 (no pure white) */
+  /* Solid #14315E behind text (0-36%), cubic-eased seamless fade through #2F5A94 into #E8F0F7 (zero bands or seams) */
   background-image: linear-gradient(
     90deg,
     var(--hero-navy-solid) 0%,
-    var(--hero-navy-solid) 38%,
-    #1D4276 45%,
-    var(--hero-blue-mid) 53%,
-    var(--hero-blue-soft) 62%,
-    #8FAED2 71%,
-    #BFD2E7 80%,
-    #DAE6F2 89%,
+    var(--hero-navy-solid) 36%,
+    #163564 40%,
+    #1B3F72 45%,
+    #244C84 50%,
+    var(--hero-blue-mid) 56%,
+    #4570A9 62%,
+    var(--hero-blue-soft) 68%,
+    #86A7CE 75%,
+    #B4CAE3 82%,
+    #D4E2F0 90%,
     var(--hero-pale-bg) 100%
   );
   border: 1px solid var(--hero-border-color);
@@ -5718,55 +5721,49 @@ body,
   -webkit-mask-image: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(0, 0, 0, 0.06) 8%,
-    rgba(0, 0, 0, 0.22) 18%,
-    rgba(0, 0, 0, 0.48) 30%,
-    rgba(0, 0, 0, 0.74) 42%,
-    rgba(0, 0, 0, 0.92) 54%,
-    #000000 65%
+    rgba(0, 0, 0, 0.02) 6%,
+    rgba(0, 0, 0, 0.12) 15%,
+    rgba(0, 0, 0, 0.34) 26%,
+    rgba(0, 0, 0, 0.62) 38%,
+    rgba(0, 0, 0, 0.86) 50%,
+    rgba(0, 0, 0, 0.97) 59%,
+    #000000 66%
   );
   mask-image: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(0, 0, 0, 0.06) 8%,
-    rgba(0, 0, 0, 0.22) 18%,
-    rgba(0, 0, 0, 0.48) 30%,
-    rgba(0, 0, 0, 0.74) 42%,
-    rgba(0, 0, 0, 0.92) 54%,
-    #000000 65%
+    rgba(0, 0, 0, 0.02) 6%,
+    rgba(0, 0, 0, 0.12) 15%,
+    rgba(0, 0, 0, 0.34) 26%,
+    rgba(0, 0, 0, 0.62) 38%,
+    rgba(0, 0, 0, 0.86) 50%,
+    rgba(0, 0, 0, 0.97) 59%,
+    #000000 66%
   );
 }
 
-/* Smooth stage-level blend from mid-blue into soft pale gray-blue (#E8F0F7) without pure white */
+/* No stage-bounded ::after overlay so no vertical seam can ever appear at the stage's left edge */
 .hero-campus-stage::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    rgba(20, 49, 94, 0.88) 0%,
-    rgba(47, 90, 148, 0.64) 16%,
-    rgba(91, 132, 184, 0.36) 32%,
-    rgba(232, 240, 247, 0.14) 52%,
-    rgba(232, 240, 247, 0.08) 100%
-  );
-  pointer-events: none;
+  content: none;
+  display: none;
 }
 
-/* Keeps solid #14315E navy behind left text (0-38%) then fades smoothly through #2F5A94 into #E8F0F7 */
+/* Single full-width seamless fade: solid #14315E behind left text, easing smoothly through #2F5A94 into clear map */
 .hero-campus-overlay {
   position: absolute;
   inset: 0;
   background: linear-gradient(
     90deg,
     var(--hero-navy-solid) 0%,
-    var(--hero-navy-solid) 38%,
-    rgba(20, 49, 94, 0.92) 44%,
-    rgba(33, 70, 124, 0.76) 50%,
-    rgba(47, 90, 148, 0.54) 57%,
-    rgba(91, 132, 184, 0.30) 64%,
-    rgba(165, 192, 222, 0.12) 72%,
-    transparent 80%
+    var(--hero-navy-solid) 36%,
+    rgba(20, 49, 94, 0.96) 41%,
+    rgba(24, 56, 104, 0.86) 46%,
+    rgba(33, 70, 124, 0.70) 52%,
+    rgba(47, 90, 148, 0.48) 58%,
+    rgba(74, 115, 168, 0.26) 65%,
+    rgba(130, 165, 206, 0.10) 73%,
+    rgba(232, 240, 247, 0.04) 82%,
+    rgba(232, 240, 247, 0.08) 100%
   );
   pointer-events: none;
   z-index: 1;
