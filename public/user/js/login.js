@@ -40,7 +40,7 @@
       if (['/client/dashboard.html', '/users/dashboard.html'].includes(pathname)) {
         pathname = '/user/dashboard.html';
       }
-      if (pathname.startsWith('/user/') || pathname.startsWith('/admin/')) {
+      if (pathname.startsWith('/user/') || pathname.startsWith('/admin/') || pathname.startsWith('/staff/')) {
         return `${pathname}${target.search}${target.hash}`;
       }
       return null;
@@ -216,7 +216,10 @@
       username.focus();
       return;
     }
-    if (password.value.length < 12) {
+    // The length rule applies when choosing a password, not when signing in:
+    // the server verifies the password itself, and older accounts may predate
+    // the rule.
+    if (registering && password.value.length < 12) {
       setFeedback('Password must be at least 12 characters long.');
       password.focus();
       return;
@@ -245,15 +248,13 @@
       password.value = '';
       confirmPassword.value = '';
       setFeedback(registering ? 'Account created! Redirecting…' : 'Signed in! Redirecting…', 'success');
+      // Each role goes to its own portal; a return link is honoured only when
+      // it stays inside that portal or the public user area.
       const returnPath = getSafeReturnPath();
-      if (result.user.role === 'admin') {
-        window.location.assign(returnPath || '/admin/dashboard.html');
-      } else {
-        const userSafePath = (returnPath && !returnPath.startsWith('/admin/'))
-          ? returnPath
-          : '/user/dashboard.html';
-        window.location.assign(userSafePath);
-      }
+      const portal = { admin: '/admin/', staff: '/staff/' }[result.user.role] || '/user/';
+      const allowedReturn = returnPath &&
+        (returnPath.startsWith(portal) || returnPath.startsWith('/user/'));
+      window.location.assign(allowedReturn ? returnPath : `${portal}dashboard.html`);
     } catch (error) {
       setFeedback(error.message || 'Unable to complete request. Please try again.');
       submit.disabled = false;

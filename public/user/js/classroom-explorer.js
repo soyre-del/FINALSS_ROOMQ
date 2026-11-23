@@ -651,6 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
         })
       });
       roomBookingFeedback.textContent = `Booked ${roomName} for ${roomBookingDate.value}, ${window.RoomQTime.format(roomBookingStart.value)}–${window.RoomQTime.format(roomBookingEnd.value)}.`;
+      document.dispatchEvent(new CustomEvent('roomq:reservations-changed', { detail: { source: 'booking' } }));
       await searchAvailability();
       if (currentBuilding?.id === buildingId &&
           currentFloor?.id === floorId &&
@@ -919,7 +920,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   updateBuilding(query.get('floor') || undefined);
   window.RoomQApi.mountAdminPanel(roomBookingAuthPanel, (user) => {
-    bookingAuthenticated = Boolean(user && ['admin', 'user'].includes(user.role));
+    bookingAuthenticated = Boolean(user && ['admin', 'staff', 'user'].includes(user.role));
     roomBookingSubmit.disabled = !bookingAuthenticated;
     roomBookingAuthNote.textContent = bookingAuthenticated
       ? 'You are signed in and can confirm this reservation.'
@@ -946,6 +947,13 @@ document.addEventListener('DOMContentLoaded', () => {
       openBookingDialogForRoom();
     });
   }
+
+  // A reservation was cancelled elsewhere on the page: refresh room statuses.
+  document.addEventListener('roomq:reservations-changed', (event) => {
+    if (!event.detail || event.detail.source !== 'booking') {
+      searchAvailability();
+    }
+  });
 
   const navCheckAvailability = document.getElementById('navCheckAvailability');
   if (navCheckAvailability) {
