@@ -1,0 +1,86 @@
+# RoomQ full stack: MySQL database + Node.js backend.
+# Credentials and secrets come from the .env file (copy .env.example).
+services:
+  db:
+    image: mysql:8.0
+    container_name: roomq-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${ROOMQ_DB_NAME}
+      MYSQL_USER: ${ROOMQ_DB_USER}
+      MYSQL_PASSWORD: ${ROOMQ_DB_PASSWORD}
+    # Persist data across container restarts.
+    volumes:
+      - roomq-db-data:/var/lib/mysql
+    ports:
+      # Published on localhost only so other machines on the network cannot
+      # reach the database. Change the left-hand port freely.
+      - "127.0.0.1:${MYSQL_HOST_PORT:-3307}:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      - roomq-net
+
+  backend:
+    build: .
+    container_name: roomq-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      # Connect to the database by its Docker service name, not localhost.
+      ROOMQ_DB_HOST: db
+      ROOMQ_DB_PORT: 3306
+      ROOMQ_DB_NAME: ${ROOMQ_DB_NAME}
+      ROOMQ_DB_USER: ${ROOMQ_DB_USER}
+      ROOMQ_DB_PASSWORD: ${ROOMQ_DB_PASSWORD}
+      ROOMQ_ADMIN_USERNAME: ${ROOMQ_ADMIN_USERNAME}
+      ROOMQ_ADMIN_PASSWORD: ${ROOMQ_ADMIN_PASSWORD}
+      ROOMQ_ADMIN_SIGNUP_KEY: ${ROOMQ_ADMIN_SIGNUP_KEY}
+      # Campus clock used for reservation rules ("today", "already started").
+      ROOMQ_TIMEZONE: ${ROOMQ_TIMEZONE:-Asia/Manila}
+      # Set to true only behind an HTTPS reverse proxy that sets X-Forwarded-*.
+      ROOMQ_TRUST_PROXY: ${ROOMQ_TRUST_PROXY:-false}
+      # auto (default): Secure cookie only for HTTPS requests. true/false forces it.
+      ROOMQ_COOKIE_SECURE: ${ROOMQ_COOKIE_SECURE:-auto}
+      ROOMQ_RESERVATION_MAX_MINUTES: ${ROOMQ_RESERVATION_MAX_MINUTES:-240}
+      ROOMQ_RESERVATION_HORIZON_DAYS: ${ROOMQ_RESERVATION_HORIZON_DAYS:-90}
+      ROOMQ_RESERVATION_MAX_ACTIVE: ${ROOMQ_RESERVATION_MAX_ACTIVE:-5}
+    ports:
+      # The app itself is reachable from other devices on the network.
+      - "${BACKEND_HOST_PORT:-8080}:3000"
+    networks:
+      - roomq-net
+
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: roomq-phpmyadmin
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Reach the database by its Docker service name.
+      PMA_HOST: db
+      PMA_PORT: 3306
+    ports:
+      # Localhost only: phpMyAdmin is a full database console.
+      - "127.0.0.1:${PHPMYADMIN_HOST_PORT:-8081}:80"
+    networks:
+      - roomq-net
+
+volumes:
+  roomq-db-data:
+
+networks:
+  roomq-net:
+    driver: bridge
