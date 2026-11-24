@@ -39,7 +39,7 @@ runs with **Docker Compose**.
 | `buildings` | Campus buildings. |
 | `floors` | Floors per building (PK `building_id, id`; FK → `buildings`). |
 | `classrooms` | Rooms with map coordinates (FK → `floors`). |
-| `users` | Accounts with `role` (`admin` / `staff` / `user`), profile (name, email), `is_active` status and salted scrypt passwords. |
+| `users` | Accounts with `role` (`admin` / `staff` / `faculty` / `student`), profile (names, email), AES-encrypted school ID, `is_active` status and salted scrypt passwords. |
 | `auth_sessions` | Hashed session tokens with expiry (FK → `users`). |
 | `schedules` | Classes and reservations (FK → `classrooms`), with recurrence and time-order `CHECK` constraints. |
 | `activity_logs` | Audit trail of every create/update/delete/sign-in (FKs → `users`, `classrooms`). |
@@ -150,6 +150,8 @@ existing database was created. The server binds to `127.0.0.1`; set
 | GET | `/api/users` | `users.manage` | List accounts; filter with `q`, `role`, `status`. |
 | POST | `/api/users` | `users.manage` | Create an account with a role. |
 | GET / PUT / DELETE | `/api/users/:id` | `users.manage` | View, edit (profile, role, status, password), or delete an account. |
+| PUT | `/api/classrooms/:id` | `classrooms.manage` | Record a classroom's capacity and facilities. |
+| GET | `/api/performance` | `reports.view` | Measured response times against the two-second target. |
 | POST | `/api/register` | public | Create a user account + session. |
 | POST | `/api/register-admin` | setup key | Create an admin account + session. |
 | POST | `/api/login` | public | Sign in (sets session cookie). |
@@ -178,30 +180,74 @@ network.
 
 ### Roles and permissions
 
-There are three roles. **Administrator** and **Staff** are management roles
-that administrators create and control; **User** is the self-registered student
-account that only reserves rooms. Permissions are defined once, in
+There are four roles, matching the user groups in the RoomQ study:
+**Administrator** manages the system, **Staff** carry out scheduling work,
+**Faculty** reserve rooms for academic activities, and **Student** views
+classrooms, schedules and availability. Administrators and staff accounts are
+created by an administrator; self-registration always creates a student, whom
+an administrator can then promote. Permissions are defined once, in
 `src/permissions.js`, and checked by the server on every request. `/api/me`
 also sends a user's permission list to the browser, which uses it only to show
 or hide controls; hiding a button never replaces the server check.
 
-| Permission | Administrator | Staff | User |
-|------------|:---:|:---:|:---:|
-| Open the administrator portal (`/admin/*`) | yes | no | no |
-| Open the staff portal (`/staff/*`) | via `/admin` | yes | no |
-| Add schedules and reservations | yes | yes | reservations only, with booking rules |
-| Update schedules | yes | yes | own reservations only |
-| Delete schedules | yes | no | own reservations only |
-| View conflicts | yes | yes | no |
-| View reports and the activity log | yes | no | no |
-| Manage users and roles (create, edit, deactivate, delete) | yes | no | no |
-| Edit own name/email and change own password | yes | yes | no (no account page) |
+| Permission | Administrator | Staff | Faculty | Student |
+|------------|:---:|:---:|:---:|:---:|
+| Open the administrator portal (`/admin/*`) | yes | no | no | no |
+| Open the staff portal (`/staff/*`) | via `/admin` | yes | no | no |
+| View classrooms, schedules and availability | yes | yes | yes | yes |
+| Add class schedules | yes | yes | no | no |
+| Reserve a room | yes | yes | yes, with booking rules | no |
+| Update schedules | yes | yes | own reservations only | no |
+| Delete schedules | yes | no | own reservations only | no |
+| View conflicts | yes | yes | no | no |
+| View reports, response times and the activity log | yes | no | no | no |
+| Edit classroom records (capacity, facilities) | yes | no | no | no |
+| Manage users and roles (create, edit, deactivate, delete) | yes | no | no | no |
+| Edit own name/email and change own password | yes | yes | no (no account page) | no |
 
 Staff cannot change their own role or status (the request is refused with 403
 even if forged), cannot create accounts, and cannot reach administrator pages
 or APIs; pages redirect them to the staff dashboard and the API answers 403.
 Signed-out requests get the sign-in page or 401. Role and status are read from
 MySQL on every request, so a role change or deactivation applies immediately.
+
+### Identity and data protection
+
+Sign-up asks for a first and last name, a **school ID number**, a university
+email address and a password. When `ROOMQ_ALLOWED_EMAIL_DOMAINS` is set,
+self-registration is limited to those domains (subdomains included), so only
+authorized university addresses can create an account. Administrators are the
+authorizing party and may create an account with any address.
+
+School ID numbers are personal data, so they are stored **AES-256-GCM
+encrypted** (`src/crypto-box.js`) using `ROOMQ_ENCRYPTION_KEY`, alongside a
+keyed blind index that keeps them unique and exactly searchable without storing
+readable text. A school ID is shown only to the account's owner and to
+administrators; it is never part of the session payload. Account holders cannot
+edit their own school ID — only an administrator can correct it. Passwords are
+*not* encrypted: they stay one-way salted scrypt hashes, which is what the
+study's own review recommends for credentials.
+
+The app refuses to start without a valid 32-byte `ROOMQ_ENCRYPTION_KEY`, rather
+than quietly falling back to storing personal data unprotected.
+
+### Classroom records
+
+Administrators maintain each classroom's **seating capacity** and **facilities**
+under **Classroom Records** (`/admin/rooms.html`). These are the values the
+capacity and facility filters on the user portal search against, so recording
+them is what makes "find a room that seats 40 with a projector" work. Buildings,
+floors and the mapped positions come from the campus layout and are not editable
+here. Every change is written to the activity log.
+
+### Response times
+
+The server times every API request and compares it with the project's
+two-second target for core database operations. Requests over the target are
+logged and counted. Administrators see the average, 95th percentile, slowest
+response, the share within target and a per-operation breakdown under
+**Reports → Response times** (`GET /api/performance`). Change the target with
+`ROOMQ_RESPONSE_TARGET_MS`.
 
 **Guarantees around accounts**
 - At least one active administrator always exists: the last one cannot be
@@ -228,15 +274,20 @@ MySQL on every request, so a role change or deactivation applies immediately.
 
 ### Upgrading an existing database
 
-Starting the app upgrades an older database in place: the `role` column gains
-`staff`, and `full_name`, `email`, `is_active`, `updated_at` and indexes are
-added. Existing accounts keep their roles and passwords and stay active.
+Starting the app upgrades an older database in place. Earlier steps added
+`staff`, the name/email/status columns and the indexes. The latest step adds the
+`faculty` and `student` roles (accounts that used the old single `user` role
+become students), the encrypted `school_id_cipher` / `school_id_index` columns,
+and `classroom` as an activity-log entity type. Existing accounts keep their
+roles and passwords and stay active; existing rooms keep their data.
 
-User accounts may reserve classrooms, and can view and cancel their own
-reservations under **Classrooms → My reservations**. User reservations must be a
-single date, today or later (and not already started), within the booking
-horizon, no longer than the maximum length, and a user can hold only a limited
-number of upcoming reservations (see the `ROOMQ_RESERVATION_*` variables).
+Faculty accounts may reserve classrooms, and can view and cancel their own
+reservations under **Classrooms → My reservations**. Those reservations must be
+a single date, today or later (and not already started), within the booking
+horizon, no longer than the maximum length, and one account can hold only a
+limited number of upcoming reservations (see the `ROOMQ_RESERVATION_*`
+variables). Students see the same classrooms, schedules and availability but
+cannot book; the booking controls are hidden and the API answers 403.
 Bookings for the same classroom are serialized with a row lock, so two
 simultaneous requests cannot double-book a slot.
 
