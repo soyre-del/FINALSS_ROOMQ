@@ -65,7 +65,7 @@ async function syncSessionAndNavigation() {
     Boolean(currentUser && Array.isArray(currentUser.permissions) &&
       currentUser.permissions.includes(permission));
   const roleLabel = (role) => ({ admin: 'Administrator', staff: 'Staff' }[role] || 'Student / User');
-  const displayName = (user) => user.fullName || user.username;
+  const displayName = (user) => user.fullName || user.email;
 
   // Access control guard (the server enforces the same rule; this covers pages
   // restored from the browser's back/forward cache after signing out).
@@ -139,7 +139,7 @@ async function syncSessionAndNavigation() {
     const roleEl = box.querySelector('#sidebarProfileRole, span:not(.mini-avatar)');
 
     if (currentUser) {
-      const initials = (currentUser.username || 'U').slice(0, 2).toUpperCase();
+      const initials = (displayName(currentUser) || 'U').slice(0, 2).toUpperCase();
       if (avatar) avatar.textContent = initials;
       if (nameEl) nameEl.textContent = displayName(currentUser);
       if (roleEl) {
@@ -159,7 +159,7 @@ async function syncSessionAndNavigation() {
     const nameEl = pill.querySelector('#topbarUsername, strong');
     const roleEl = pill.querySelector('#topbarRole, .workspace-profile-meta span');
     if (currentUser) {
-      if (avatar) avatar.textContent = (currentUser.username || 'U').slice(0, 2).toUpperCase();
+      if (avatar) avatar.textContent = (displayName(currentUser) || 'U').slice(0, 2).toUpperCase();
       if (nameEl) nameEl.textContent = displayName(currentUser);
       if (roleEl) roleEl.textContent = roleLabel(currentUser.role);
     } else {

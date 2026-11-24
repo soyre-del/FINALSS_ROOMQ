@@ -53,7 +53,7 @@
       container.replaceChildren();
       container.classList.add('admin-session-panel');
       if (activeUser) {
-        const status = makeElement('p', 'admin-session-status', `Signed in as ${activeUser.username}`);
+        const status = makeElement('p', 'admin-session-status', `Signed in as ${activeUser.fullName || activeUser.email}`);
         const logout = makeElement('button', 'admin-session-button', 'Sign out');
         logout.type = 'button';
         logout.addEventListener('click', async () => {
@@ -73,14 +73,14 @@
       }
 
       const form = makeElement('form', 'admin-login-form');
-      const usernameLabel = makeElement('label', 'admin-login-field');
-      usernameLabel.append(makeElement('span', '', 'Administrator username'));
-      const username = makeElement('input');
-      username.name = 'username';
-      username.autocomplete = 'username';
-      username.value = 'admin';
-      username.required = true;
-      usernameLabel.append(username);
+      const emailLabel = makeElement('label', 'admin-login-field');
+      emailLabel.append(makeElement('span', '', 'Email'));
+      const email = makeElement('input');
+      email.type = 'email';
+      email.name = 'email';
+      email.autocomplete = 'email';
+      email.required = true;
+      emailLabel.append(email);
 
       const passwordLabel = makeElement('label', 'admin-login-field');
       passwordLabel.append(makeElement('span', '', 'Password'));
@@ -95,7 +95,7 @@
       submit.type = 'submit';
       const message = makeElement('p', 'admin-session-message');
       message.setAttribute('role', 'status');
-      form.append(usernameLabel, passwordLabel, submit, message);
+      form.append(emailLabel, passwordLabel, submit, message);
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
         submit.disabled = true;
@@ -103,7 +103,7 @@
         try {
           const result = await request('/api/login', {
             method: 'POST',
-            body: JSON.stringify({ username: username.value, password: password.value })
+            body: JSON.stringify({ email: email.value, password: password.value })
           });
           activeUser = result.user;
           password.value = '';

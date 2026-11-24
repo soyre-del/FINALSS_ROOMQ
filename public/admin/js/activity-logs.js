@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
             dateStyle: 'medium',
             timeStyle: 'short'
           }).format(timestamp),
-        log.actorUsername,
+        log.actorEmail,
         activityName(log.action),
         recordName(log),
         roomName(log)
@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
       logs.filter((log) => ['schedule', 'reservation'].includes(log.entityType)).length
     );
     document.getElementById('activityStatUsers').textContent = String(
-      new Set(logs.map((log) => log.actorUsername)).size
+      new Set(logs.map((log) => log.actorEmail)).size
     );
     document.getElementById('activityStatRooms').textContent = String(
       logs.filter((log) => log.classroomId).length

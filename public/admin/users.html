@@ -140,7 +140,7 @@
           <section class="panel activity-filter-panel" aria-labelledby="userFilterHeading">
             <div class="schedule-section-heading"><div><p class="panel-kicker">Find accounts</p><h2 id="userFilterHeading">Search and filter</h2></div></div>
             <form id="userFilterForm" class="roomq-form" novalidate>
-              <label class="assignment-field"><span>Search</span><input type="search" id="userSearch" class="form-control" placeholder="Username, name, or email" maxlength="100" /></label>
+              <label class="assignment-field"><span>Search</span><input type="search" id="userSearch" class="form-control" placeholder="Name or email" maxlength="100" /></label>
               <label class="assignment-field"><span>Role</span>
                 <select id="userRoleFilter" class="form-select">
                   <option value="">All roles</option>
@@ -178,9 +178,10 @@
                 <div><p class="panel-kicker" id="userDialogKicker">New account</p><h2 id="userDialogHeading">Add user</h2></div>
                 <button type="button" id="userDialogClose" class="btn btn-outline-primary btn-sm" aria-label="Close"><i class="bi bi-x-lg"></i> Close</button>
               </div>
-              <label class="assignment-field"><span>Username</span><input type="text" id="userUsername" class="form-control" minlength="3" maxlength="32" autocomplete="off" required /></label>
-              <label class="assignment-field"><span>Full name</span><input type="text" id="userFullName" class="form-control" maxlength="120" autocomplete="off" /></label>
-              <label class="assignment-field"><span>Email address</span><input type="email" id="userEmail" class="form-control" maxlength="190" autocomplete="off" /></label>
+              <label class="assignment-field"><span>First Name</span><input type="text" id="userFirstName" class="form-control" maxlength="60" autocomplete="off" required /></label>
+              <label class="assignment-field"><span>Middle Name (Optional)</span><input type="text" id="userMiddleName" class="form-control" maxlength="60" autocomplete="off" /></label>
+              <label class="assignment-field"><span>Last Name</span><input type="text" id="userLastName" class="form-control" maxlength="60" autocomplete="off" required /></label>
+              <label class="assignment-field"><span>Email address</span><input type="email" id="userEmail" class="form-control" maxlength="190" autocomplete="off" required /></label>
               <label class="assignment-field"><span>Role</span>
                 <select id="userRole" class="form-select">
                   <option value="staff">Staff</option>

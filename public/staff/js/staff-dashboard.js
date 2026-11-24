@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
     api.request('/api/schedules?kind=class')
   ]).then(([me, summary, schedules]) => {
     if (me.authenticated) {
-      const name = me.user.fullName || me.user.username;
+      const name = me.user.fullName || me.user.email;
       document.getElementById('staffGreeting').textContent =
         `Welcome back, ${name}. Here is what is happening on campus today.`;
     }

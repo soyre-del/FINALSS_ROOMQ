@@ -1,6 +1,12 @@
 (function () {
   const form = document.getElementById('authForm');
-  const username = document.getElementById('authUsername');
+  const firstNameField = document.getElementById('firstNameField');
+  const firstName = document.getElementById('authFirstName');
+  const middleNameField = document.getElementById('middleNameField');
+  const middleName = document.getElementById('authMiddleName');
+  const lastNameField = document.getElementById('lastNameField');
+  const lastName = document.getElementById('authLastName');
+  const email = document.getElementById('authEmail');
   const password = document.getElementById('authPassword');
   const confirmPasswordField = document.getElementById('confirmPasswordField');
   const confirmPassword = document.getElementById('authPasswordConfirm');
@@ -12,7 +18,6 @@
   const modeToggle = document.getElementById('authModeToggle');
   const tabLogin = document.getElementById('authTabLogin');
   const tabRegister = document.getElementById('authTabRegister');
-  const usernameHint = document.getElementById('usernameHint');
   const passwordHint = document.getElementById('passwordHint');
   const strengthBox = document.getElementById('passwordStrengthBox');
   const strengthBars = [...document.querySelectorAll('[data-strength-bar]')];
@@ -20,6 +25,7 @@
   const charCount = document.getElementById('passwordCharCount');
   const matchPill = document.getElementById('passwordMatchPill');
   const query = new URLSearchParams(window.location.search);
+  const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   let mode = query.get('mode') === 'register' ? 'register' : 'login';
 
@@ -143,9 +149,13 @@
     heading.textContent = registering ? 'Create your account' : 'Sign in to RoomQ';
     description.textContent = registering
       ? 'Set up a RoomQ account to reserve classrooms.'
-      : 'Enter your credentials to access your account.';
+      : 'Enter your email and password to access your account.';
 
-    if (usernameHint) usernameHint.hidden = !registering;
+    if (firstNameField) firstNameField.hidden = !registering;
+    if (middleNameField) middleNameField.hidden = !registering;
+    if (lastNameField) lastNameField.hidden = !registering;
+    if (firstName) firstName.required = registering;
+    if (lastName) lastName.required = registering;
     if (passwordHint) passwordHint.hidden = !registering;
     if (strengthBox) strengthBox.hidden = !registering;
 
@@ -153,7 +163,9 @@
     confirmPassword.required = registering;
     password.autocomplete = registering ? 'new-password' : 'current-password';
     password.placeholder = registering ? 'Create a password (12+ chars)' : 'Enter your password';
-    username.placeholder = registering ? 'Choose a username' : 'Enter your username';
+    if (email) {
+      email.placeholder = registering ? 'Enter your email address' : 'Enter your email';
+    }
 
     setButtonLabel(registering ? 'Create account' : 'Sign in');
 
@@ -173,7 +185,11 @@
     if (mode === nextMode) return;
     mode = nextMode;
     render();
-    username.focus();
+    if (mode === 'register' && firstName) {
+      firstName.focus();
+    } else if (email) {
+      email.focus();
+    }
   }
 
   if (tabLogin) {
@@ -209,25 +225,48 @@
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const registering = mode === 'register';
-    const trimmedUser = username.value.trim();
+    const trimmedEmail = email ? email.value.trim() : '';
+    const trimmedFirst = firstName ? firstName.value.trim() : '';
+    const trimmedMiddle = middleName ? middleName.value.trim() : '';
+    const trimmedLast = lastName ? lastName.value.trim() : '';
 
-    if (trimmedUser.length < 3) {
-      setFeedback('Username must be at least 3 characters long.');
-      username.focus();
-      return;
-    }
-    // The length rule applies when choosing a password, not when signing in:
-    // the server verifies the password itself, and older accounts may predate
-    // the rule.
-    if (registering && password.value.length < 12) {
-      setFeedback('Password must be at least 12 characters long.');
-      password.focus();
-      return;
-    }
-    if (registering && password.value !== confirmPassword.value) {
-      setFeedback('The passwords do not match.');
-      confirmPassword.focus();
-      return;
+    if (registering) {
+      if (!trimmedFirst) {
+        setFeedback('Enter your first name.');
+        if (firstName) firstName.focus();
+        return;
+      }
+      if (!trimmedLast) {
+        setFeedback('Enter your last name.');
+        if (lastName) lastName.focus();
+        return;
+      }
+      if (!EMAIL_PATTERN.test(trimmedEmail)) {
+        setFeedback('Enter a valid email address.');
+        if (email) email.focus();
+        return;
+      }
+      if (password.value.length < 12) {
+        setFeedback('Password must be at least 12 characters long.');
+        password.focus();
+        return;
+      }
+      if (password.value !== confirmPassword.value) {
+        setFeedback('The passwords do not match.');
+        confirmPassword.focus();
+        return;
+      }
+    } else {
+      if (!trimmedEmail) {
+        setFeedback('Enter your email address.');
+        if (email) email.focus();
+        return;
+      }
+      if (!password.value) {
+        setFeedback('Enter your password.');
+        password.focus();
+        return;
+      }
     }
 
     submit.disabled = true;
@@ -235,14 +274,23 @@
     setFeedback('');
 
     try {
+      const payload = registering
+        ? {
+          firstName: trimmedFirst,
+          middleName: trimmedMiddle || undefined,
+          lastName: trimmedLast,
+          email: trimmedEmail,
+          password: password.value
+        }
+        : {
+          email: trimmedEmail,
+          password: password.value
+        };
       const result = await window.RoomQApi.request(
         registering ? '/api/register' : '/api/login',
         {
           method: 'POST',
-          body: JSON.stringify({
-            username: trimmedUser,
-            password: password.value
-          })
+          body: JSON.stringify(payload)
         }
       );
       password.value = '';

@@ -375,7 +375,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const text = document.createElement('p');
         text.className = 'activity-feed-text';
         const actor = document.createElement('strong');
-        actor.textContent = item.actorUsername || 'System';
+        actor.textContent = item.actorEmail || 'System';
         text.append(actor, document.createTextNode(` ${formatActivitySummary(item)}`));
 
         const time = document.createElement('span');

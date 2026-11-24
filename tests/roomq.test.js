@@ -20,7 +20,7 @@ async function setupDatabase(t) {
   const name = `roomq_test_${crypto.randomBytes(6).toString('hex')}`;
   const database = await createDatabase({
     database: name,
-    adminUsername: 'admin',
+    adminEmail: 'admin@example.com',
     adminPassword: 'test-password-long-enough',
     connectAttempts: 10,
     connectDelayMs: 500
@@ -51,11 +51,13 @@ function futureDate(days = 7) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 
+const em = (name) => (name.includes('@') ? name : `${name}@example.com`);
+
 async function loginCookie(url, username, password) {
   const response = await fetch(`${url}/api/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ email: em(username), password })
   });
   assert.equal(response.status, 200);
   return response.headers.get('set-cookie').split(';')[0];
@@ -65,7 +67,7 @@ async function registerCookie(url, username, password = `${username}-password-lo
   const response = await fetch(`${url}/api/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ firstName: username, lastName: 'Tester', email: em(username), password })
   });
   assert.equal(response.status, 200);
   return response.headers.get('set-cookie').split(';')[0];
@@ -281,7 +283,7 @@ test('API protects schedule changes and returns conflicting schedule details', a
   const login = await fetch(`${url}/api/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: 'admin', password: 'test-password-long-enough' })
+    body: JSON.stringify({ email: 'admin@example.com', firstName: 'admin', lastName: 'Test', password: 'test-password-long-enough' })
   });
   assert.equal(login.status, 200);
   const cookie = login.headers.get('set-cookie').split(';')[0];
@@ -357,7 +359,7 @@ test('users can create accounts and reservations but cannot manage class schedul
   const shortPassword = await fetch(`${url}/api/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: 'student', password: 'short' })
+    body: JSON.stringify({ email: 'student@example.com', firstName: 'student', lastName: 'Test', password: 'short' })
   });
   assert.equal(shortPassword.status, 400);
 
@@ -365,7 +367,7 @@ test('users can create accounts and reservations but cannot manage class schedul
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      username: 'student-1',
+      email: 'student-1@example.com', firstName: 'student-1', lastName: 'Test',
       password: 'student-password-long',
       role: 'admin'
     })
@@ -384,7 +386,7 @@ test('users can create accounts and reservations but cannot manage class schedul
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      username: 'student-1',
+      email: 'student-1@example.com', firstName: 'student-1', lastName: 'Test',
       password: 'student-password-long'
     })
   });
@@ -394,7 +396,7 @@ test('users can create accounts and reservations but cannot manage class schedul
   const duplicate = await fetch(`${url}/api/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: 'student-1', password: 'student-password-long' })
+    body: JSON.stringify({ email: 'student-1@example.com', firstName: 'student-1', lastName: 'Test', password: 'student-password-long' })
   });
   assert.equal(duplicate.status, 409);
 
@@ -402,7 +404,7 @@ test('users can create accounts and reservations but cannot manage class schedul
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      username: 'student-1',
+      email: 'student-1@example.com', firstName: 'student-1', lastName: 'Test',
       password: 'student-password-long',
       role: 'admin'
     })
@@ -417,7 +419,7 @@ test('users can create accounts and reservations but cannot manage class schedul
   assert.equal(reservationResponse.status, 201);
   const reservationRecord = await reservationResponse.json();
   assert.equal(reservationRecord.ownedByCurrentUser, true);
-  assert.equal('createdByUsername' in reservationRecord, false);
+  assert.equal('createdByEmail' in reservationRecord, false);
 
   const classScheduleResponse = await fetch(`${url}/api/schedules`, {
     method: 'POST',
@@ -523,7 +525,7 @@ test('schedule listings hide reservation owners from non-admins', async (t) => {
   })).status, 201);
 
   const [publicItem] = await (await fetch(`${url}/api/schedules?kind=reservation`)).json();
-  assert.equal('createdByUsername' in publicItem, false);
+  assert.equal('createdByEmail' in publicItem, false);
   assert.equal('createdByUserId' in publicItem, false);
   assert.equal(publicItem.ownedByCurrentUser, false);
 
@@ -531,7 +533,7 @@ test('schedule listings hide reservation owners from non-admins', async (t) => {
   const [adminItem] = await (await fetch(`${url}/api/schedules?kind=reservation`, {
     headers: { Cookie: adminCookie }
   })).json();
-  assert.equal(adminItem.createdByUsername, 'owner-1');
+  assert.equal(adminItem.createdByEmail, 'owner-1@example.com');
 });
 
 test('admin pages require an administrator session', async (t) => {
@@ -560,7 +562,7 @@ test('session cookie is Secure only on HTTPS requests', async (t) => {
   const login = (headers = {}) => fetch(`${url}/api/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...headers },
-    body: JSON.stringify({ username: 'admin', password: 'test-password-long-enough' })
+    body: JSON.stringify({ email: 'admin@example.com', firstName: 'admin', lastName: 'Test', password: 'test-password-long-enough' })
   });
   const previous = { secure: process.env.ROOMQ_COOKIE_SECURE, proxy: process.env.ROOMQ_TRUST_PROXY };
   t.after(() => {
@@ -586,7 +588,7 @@ test('failed sign-ins lock only the targeted account, and failed sign-ups are no
   const attempt = (username, password) => fetch(`${url}/api/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ email: em(username), password })
   });
   for (let index = 0; index < 10; index += 1) {
     assert.equal((await attempt('admin', 'wrong-password-123')).status, 401);
@@ -599,7 +601,7 @@ test('failed sign-ins lock only the targeted account, and failed sign-ups are no
     const response = await fetch(`${url}/api/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: 'x', password: 'short' })
+      body: JSON.stringify({ email: 'x@example.com', firstName: 'x', lastName: 'Test', password: 'short' })
     });
     assert.equal(response.status, 400);
   }
@@ -614,7 +616,7 @@ test('admin self-signup requires the setup key and creates an admin session', as
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      username: 'admin-two',
+      email: 'admin-two@example.com', firstName: 'admin-two', lastName: 'Test',
       password: 'another-admin-password',
       setupKey: 'incorrect-private-key'
     })
@@ -625,7 +627,7 @@ test('admin self-signup requires the setup key and creates an admin session', as
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      username: 'admin-two',
+      email: 'admin-two@example.com', firstName: 'admin-two', lastName: 'Test',
       password: 'another-admin-password',
       setupKey: 'private-admin-setup-key-2026'
     })
@@ -676,10 +678,11 @@ async function rbacFixture(t) {
   const adminCookie = await loginCookie(url, 'admin', 'test-password-long-enough');
   const admin = client(url, adminCookie);
   const created = await admin('POST', '/api/users', {
-    username: 'staff-one',
+    email: 'staff-one@example.com', firstName: 'staff-one', lastName: 'Test',
     password: 'staff-one-password',
-    fullName: 'Staff One',
-    email: 'staff.one@example.com',
+    firstName: 'Staff',
+    lastName: 'One',
+    email: 'staff-one@example.com',
     role: 'staff'
   });
   assert.equal(created.status, 201);
@@ -727,7 +730,7 @@ test('administrator creates a staff account and staff sign in with their own per
   const stored = await database.getUserById(staffId);
   assert.equal(stored.role, 'staff');
   assert.equal(stored.isActive, true);
-  const raw = await database.getUser('staff-one');
+  const raw = await database.getUserByEmail('staff-one@example.com');
   assert.match(raw.password_hash, /^[0-9a-f]{128}$/);
   assert.notEqual(raw.password_hash, 'staff-one-password');
 
@@ -735,7 +738,7 @@ test('administrator creates a staff account and staff sign in with their own per
   const login = (role) => fetch(`${url}/api/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: 'staff-one', password: 'staff-one-password', role })
+    body: JSON.stringify({ email: 'staff-one@example.com', firstName: 'staff-one', lastName: 'Test', password: 'staff-one-password', role })
   });
   assert.equal((await login('staff')).status, 200);
   assert.equal((await login('admin')).status, 401);
@@ -745,7 +748,7 @@ test('staff cannot reach administrator API endpoints', async (t) => {
   const { staff, guest, staffId } = await rbacFixture(t);
   const probes = [
     ['GET', '/api/users'],
-    ['POST', '/api/users', { username: 'evil-admin', password: 'evil-admin-password', role: 'admin' }],
+    ['POST', '/api/users', { email: 'evil-admin@example.com', firstName: 'evil-admin', lastName: 'Test', password: 'evil-admin-password', role: 'admin' }],
     ['GET', `/api/users/${staffId}`],
     ['PUT', `/api/users/${staffId}`, { role: 'admin' }],
     ['DELETE', `/api/users/${staffId}`],
@@ -776,8 +779,8 @@ test('staff can add and update schedules and see conflicts, but cannot delete sc
   assert.equal((await database.getSchedule(created.json.id)).course, 'BIO 200');
   // Staff do not see who made a schedule; administrators do.
   const listed = await staff('GET', '/api/schedules');
-  assert.equal('createdByUsername' in listed.json[0], false);
-  assert.equal((await admin('GET', '/api/schedules')).json[0].createdByUsername, 'staff-one');
+  assert.equal('createdByEmail' in listed.json[0], false);
+  assert.equal((await admin('GET', '/api/schedules')).json[0].createdByEmail, 'staff-one@example.com');
   assert.equal((await admin('DELETE', `/api/schedules/${created.json.id}`)).status, 200);
 });
 
@@ -794,7 +797,7 @@ test('staff cannot change their own role or status, however the request is made'
   const registered = await fetch(`${url}/api/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: 'sneaky', password: 'sneaky-password-long', role: 'staff' })
+    body: JSON.stringify({ email: 'sneaky@example.com', firstName: 'sneaky', lastName: 'Test', password: 'sneaky-password-long', role: 'staff' })
   });
   assert.equal((await registered.json()).user.role, 'user');
 
@@ -847,31 +850,31 @@ test('administrators manage accounts: create, search, edit, deactivate, delete',
   const { admin, url, staffId, database } = await rbacFixture(t);
 
   // Validation and duplicates.
-  assert.equal((await admin('POST', '/api/users', { username: 'x', password: 'long-enough-password' })).status, 400);
-  assert.equal((await admin('POST', '/api/users', { username: 'okname', password: 'short' })).status, 400);
+  assert.equal((await admin('POST', '/api/users', { email: 'not-an-email', firstName: 'X', lastName: 'Y', password: 'long-enough-password' })).status, 400);
+  assert.equal((await admin('POST', '/api/users', { email: 'okname@example.com', firstName: 'okname', lastName: 'Test', password: 'short' })).status, 400);
   assert.equal((await admin('POST', '/api/users', {
-    username: 'okname', password: 'long-enough-password', role: 'root'
+    email: 'okname@example.com', firstName: 'okname', lastName: 'Test', password: 'long-enough-password', role: 'root'
   })).status, 400);
   assert.equal((await admin('POST', '/api/users', {
-    username: 'okname', password: 'long-enough-password', email: 'not-an-email'
+    email: 'okname@example.com', firstName: 'okname', lastName: 'Test', password: 'long-enough-password', email: 'not-an-email'
   })).status, 400);
-  assert.equal((await admin('POST', '/api/users', { username: 'staff-one', password: 'long-enough-password' })).status, 409);
+  assert.equal((await admin('POST', '/api/users', { email: 'staff-one@example.com', firstName: 'staff-one', lastName: 'Test', password: 'long-enough-password' })).status, 409);
   assert.equal((await admin('POST', '/api/users', {
-    username: 'other', password: 'long-enough-password', email: 'STAFF.ONE@example.com'
+    email: 'other@example.com', firstName: 'other', lastName: 'Test', password: 'long-enough-password', email: 'STAFF-ONE@example.com'
   })).status, 409);
   assert.equal((await admin('GET', '/api/users/99999')).status, 404);
   assert.equal((await admin('PUT', '/api/users/99999', { fullName: 'x' })).status, 404);
 
   // Create more accounts, then search and filter.
   await admin('POST', '/api/users', {
-    username: 'staff-two', password: 'staff-two-password', fullName: 'Maria Cruz', role: 'staff', isActive: false
+    email: 'staff-two@example.com', firstName: 'staff-two', lastName: 'Test', firstName: 'Maria', lastName: 'Cruz', password: 'staff-two-password', role: 'staff', isActive: false
   });
-  await admin('POST', '/api/users', { username: 'second-admin', password: 'second-admin-password', role: 'admin' });
-  const names = (response) => response.json.map((account) => account.username);
-  assert.deepEqual(names(await admin('GET', '/api/users?role=staff')).sort(), ['staff-one', 'staff-two']);
-  assert.deepEqual(names(await admin('GET', '/api/users?role=staff&status=inactive')), ['staff-two']);
-  assert.deepEqual(names(await admin('GET', '/api/users?q=cruz')), ['staff-two']);
-  assert.deepEqual(names(await admin('GET', '/api/users?q=example.com')), ['staff-one']);
+  await admin('POST', '/api/users', { email: 'second-admin@example.com', firstName: 'second-admin', lastName: 'Test', password: 'second-admin-password', role: 'admin' });
+  const names = (response) => response.json.map((account) => account.email);
+  assert.deepEqual(names(await admin('GET', '/api/users?role=staff')).sort(), ['staff-one@example.com', 'staff-two@example.com']);
+  assert.deepEqual(names(await admin('GET', '/api/users?role=staff&status=inactive')), ['staff-two@example.com']);
+  assert.deepEqual(names(await admin('GET', '/api/users?q=cruz')), ['staff-two@example.com']);
+  assert.deepEqual(names(await admin('GET', '/api/users?q=staff-one')), ['staff-one@example.com']);
   assert.equal((await admin('GET', '/api/users?q=%25')).json.length, 0, 'LIKE wildcards are escaped');
   assert.equal((await admin('GET', '/api/users?role=bogus')).status, 400);
   const listing = (await admin('GET', '/api/users')).json;
@@ -884,7 +887,7 @@ test('administrators manage accounts: create, search, edit, deactivate, delete',
   assert.equal(promoted.json.role, 'admin');
   assert.equal((await database.getUserById(staffId)).role, 'admin');
   assert.equal((await staff('GET', '/api/users')).status, 200, 'permission follows the stored role at once');
-  const renamed = await admin('PUT', `/api/users/${staffId}`, { role: 'staff', fullName: 'Staff One Renamed' });
+  const renamed = await admin('PUT', `/api/users/${staffId}`, { role: 'staff', firstName: 'Staff One', lastName: 'Renamed' });
   assert.equal(renamed.json.fullName, 'Staff One Renamed');
   assert.equal((await staff('GET', '/api/users')).status, 403);
 
@@ -894,7 +897,7 @@ test('administrators manage accounts: create, search, edit, deactivate, delete',
   const attempt = (password) => fetch(`${url}/api/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: 'staff-one', password })
+    body: JSON.stringify({ email: 'staff-one@example.com', firstName: 'staff-one', lastName: 'Test', password })
   });
   assert.equal((await attempt('staff-one-password')).status, 403);
   assert.equal((await attempt('wrong-password-here')).status, 401, 'wrong password does not reveal the status');
@@ -913,11 +916,11 @@ test('administrators manage accounts: create, search, edit, deactivate, delete',
   assert.equal((await admin('DELETE', `/api/users/${staffId}`)).status, 404);
   const logs = (await admin('GET', '/api/activity-logs?limit=200')).json.items;
   assert.ok(logs.some((item) =>
-    item.entityType === 'user' && item.action === 'created' && item.updated.username === 'staff-one'));
+    item.entityType === 'user' && item.action === 'created' && item.updated.email === 'staff-one@example.com'));
   assert.ok(logs.some((item) =>
     item.entityType === 'user' && item.action === 'updated' && item.previous && item.updated.role === 'admin'));
   assert.ok(logs.some((item) =>
-    item.entityType === 'user' && item.action === 'deleted' && item.previous.username === 'staff-one'));
+    item.entityType === 'user' && item.action === 'deleted' && item.previous.email === 'staff-one@example.com'));
   assert.equal(JSON.stringify(logs).includes('password_hash'), false);
   assert.equal(JSON.stringify(logs).includes('brand-new-password-1'), false);
 });
@@ -936,7 +939,7 @@ test('the system always keeps one active administrator', async (t) => {
 
   // With a second administrator, the first may step down; the last one never can.
   const second = await admin('POST', '/api/users', {
-    username: 'admin-two', password: 'admin-two-password', role: 'admin'
+    email: 'admin-two@example.com', firstName: 'admin-two', lastName: 'Test', password: 'admin-two-password', role: 'admin'
   });
   assert.equal(second.status, 201);
   const secondAdmin = client(url, await loginCookie(url, 'admin-two', 'admin-two-password'));
@@ -950,7 +953,7 @@ test('two administrators cannot remove each other at the same time', async (t) =
   const { admin, url, database } = await rbacFixture(t);
   const first = (await admin('GET', '/api/users?role=admin')).json[0];
   const second = await admin('POST', '/api/users', {
-    username: 'admin-two', password: 'admin-two-password', role: 'admin'
+    email: 'admin-two@example.com', firstName: 'admin-two', lastName: 'Test', password: 'admin-two-password', role: 'admin'
   });
   const secondAdmin = client(url, await loginCookie(url, 'admin-two', 'admin-two-password'));
 
@@ -967,12 +970,12 @@ test('accounts manage their own details and password', async (t) => {
 
   const account = await staff('GET', '/api/account');
   assert.equal(account.status, 200);
-  assert.equal(account.json.username, 'staff-one');
+  assert.equal(account.json.email, 'staff-one@example.com');
   assert.equal(account.json.role, 'staff');
   assert.equal('password_hash' in account.json, false);
   assert.equal((await client(url)('GET', '/api/account')).status, 401);
 
-  const saved = await staff('PUT', '/api/account', { fullName: 'Renamed Staff', email: 'Renamed@Example.com' });
+  const saved = await staff('PUT', '/api/account', { firstName: 'Renamed', lastName: 'Staff', email: 'Renamed@Example.com' });
   assert.equal(saved.status, 200);
   assert.equal(saved.json.email, 'renamed@example.com');
   assert.equal((await database.getUserById(staffId)).fullName, 'Renamed Staff');
@@ -986,14 +989,14 @@ test('accounts manage their own details and password', async (t) => {
   assert.equal((await change('staff-one-password', 'short')).status, 400);
   assert.equal((await change('staff-one-password', 'staff-one-password')).status, 400);
 
-  const otherSession = client(url, await loginCookie(url, 'staff-one', 'staff-one-password'));
+  const otherSession = client(url, await loginCookie(url, 'renamed@example.com', 'staff-one-password'));
   assert.equal((await change('staff-one-password', 'a-brand-new-password')).status, 200);
   assert.equal((await staff('GET', '/api/me')).json.authenticated, true, 'this session stays signed in');
   assert.equal((await otherSession('GET', '/api/me')).json.authenticated, false, 'other sessions end');
   const login = (password) => fetch(`${url}/api/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: 'staff-one', password })
+    body: JSON.stringify({ email: 'renamed@example.com', password })
   });
   assert.equal((await login('staff-one-password')).status, 401);
   assert.equal((await login('a-brand-new-password')).status, 200);
@@ -1026,18 +1029,26 @@ test('existing accounts keep their roles when an older database is upgraded', as
      ('old-admin', 'aa', 'bb', 'admin'), ('old-student', 'cc', 'dd', 'user')`
   );
 
+  const previousAdminEmail = process.env.ROOMQ_ADMIN_EMAIL;
+  process.env.ROOMQ_ADMIN_EMAIL = 'old-admin@example.com';
+  t.after(() => {
+    if (previousAdminEmail === undefined) delete process.env.ROOMQ_ADMIN_EMAIL;
+    else process.env.ROOMQ_ADMIN_EMAIL = previousAdminEmail;
+  });
   const database = await createDatabase({ database: name, connectAttempts: 5, connectDelayMs: 200 });
   t.after(() => database.close());
 
-  const oldAdmin = await database.getUser('old-admin');
-  const oldStudent = await database.getUser('old-student');
+  const oldAdmin = await database.getUserByEmail('old-admin@example.com');
+  const oldStudent = await database.getUserByEmail('old-student@roomq.local');
   assert.equal(oldAdmin.role, 'admin');
   assert.equal(oldStudent.role, 'user');
   assert.equal(oldAdmin.is_active, 1, 'existing accounts stay active');
   assert.equal(oldAdmin.password_hash, 'bb', 'credentials are untouched');
   assert.equal((await database.listUsers()).length, 2, 'no accounts were created or lost');
 
-  const staff = await database.createUser('new-staff', 'new-staff-password', 'staff', { fullName: 'New Staff' });
+  const staff = await database.createUser({
+    email: 'new-staff@example.com', password: 'new-staff-password', role: 'staff', firstName: 'New', lastName: 'Staff'
+  });
   assert.equal(staff.role, 'staff');
   const [rows] = await admin.query(
     `SELECT COLUMN_TYPE FROM information_schema.COLUMNS
@@ -1047,8 +1058,8 @@ test('existing accounts keep their roles when an older database is upgraded', as
   assert.match(rows[0].COLUMN_TYPE, /'admin','staff','user'/);
   await assert.rejects(
     () => admin.query(
-      `INSERT INTO \`${name}\`.users (username, password_salt, password_hash, role)
-       VALUES ('bad', 'a', 'b', 'superuser')`
+      `INSERT INTO \`${name}\`.users (password_salt, password_hash, role)
+       VALUES ('a', 'b', 'superuser')`
     ),
     /Data truncated|Incorrect enum/i,
     'the database itself rejects unknown roles'

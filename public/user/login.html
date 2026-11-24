@@ -49,22 +49,75 @@
       </div>
 
       <form class="auth-form" id="authForm" novalidate>
-        <div class="auth-field">
+        <div class="auth-field" id="firstNameField" hidden>
           <div class="auth-field-header">
-            <label for="authUsername">Username</label>
-            <span class="auth-field-hint" id="usernameHint" hidden>3&ndash;32 chars</span>
+            <label for="authFirstName">First Name</label>
           </div>
           <div class="auth-input-wrap">
             <i class="bi bi-person auth-input-icon" aria-hidden="true"></i>
             <input
-              id="authUsername"
+              id="authFirstName"
               class="form-control auth-input"
-              name="username"
+              name="firstName"
               type="text"
-              placeholder="Enter your username"
-              autocomplete="username"
-              minlength="3"
-              maxlength="32"
+              placeholder="Enter your first name"
+              autocomplete="given-name"
+              maxlength="60"
+            />
+          </div>
+        </div>
+
+        <div class="auth-field" id="middleNameField" hidden>
+          <div class="auth-field-header">
+            <label for="authMiddleName">Middle Name</label>
+            <span class="auth-field-hint">Optional</span>
+          </div>
+          <div class="auth-input-wrap">
+            <i class="bi bi-person auth-input-icon" aria-hidden="true"></i>
+            <input
+              id="authMiddleName"
+              class="form-control auth-input"
+              name="middleName"
+              type="text"
+              placeholder="Enter your middle name (optional)"
+              autocomplete="additional-name"
+              maxlength="60"
+            />
+          </div>
+        </div>
+
+        <div class="auth-field" id="lastNameField" hidden>
+          <div class="auth-field-header">
+            <label for="authLastName">Last Name</label>
+          </div>
+          <div class="auth-input-wrap">
+            <i class="bi bi-person auth-input-icon" aria-hidden="true"></i>
+            <input
+              id="authLastName"
+              class="form-control auth-input"
+              name="lastName"
+              type="text"
+              placeholder="Enter your last name"
+              autocomplete="family-name"
+              maxlength="60"
+            />
+          </div>
+        </div>
+
+        <div class="auth-field">
+          <div class="auth-field-header">
+            <label for="authEmail">Email</label>
+          </div>
+          <div class="auth-input-wrap">
+            <i class="bi bi-envelope auth-input-icon" aria-hidden="true"></i>
+            <input
+              id="authEmail"
+              class="form-control auth-input"
+              name="email"
+              type="email"
+              placeholder="Enter your email"
+              autocomplete="email"
+              maxlength="190"
               required
             />
           </div>

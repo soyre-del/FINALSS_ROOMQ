@@ -294,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
           : `Room ${room.roomNumber}${room.name ? ` · ${room.name}` : ''}`
         : 'Unassigned room';
       const description = document.createElement('span');
-      description.textContent = `${room ? `${room.buildingName} · ${room.floorLabel} · ` : ''}${record.date} · ${window.RoomQTime.format(record.startTime)}–${window.RoomQTime.format(record.endTime)}${record.createdByUsername ? ` · Reserved by ${record.createdByUsername}` : ''}`;
+      description.textContent = `${room ? `${room.buildingName} · ${room.floorLabel} · ` : ''}${record.date} · ${window.RoomQTime.format(record.startTime)}–${window.RoomQTime.format(record.endTime)}${record.createdByEmail ? ` · Reserved by ${record.createdByEmail}` : ''}`;
       copy.append(title, description);
 
       const removeButton = document.createElement('button');

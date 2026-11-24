@@ -61,7 +61,7 @@ docker compose up -d --build
 #    http://localhost:8080   (BACKEND_HOST_PORT in .env)
 ```
 
-Sign in with the administrator account from `.env` (`ROOMQ_ADMIN_USERNAME` /
+Sign in with the administrator account from `.env` (`ROOMQ_ADMIN_EMAIL` /
 `ROOMQ_ADMIN_PASSWORD`). The shared sign-in page accepts either an administrator
 or a user account and routes each appropriately. New accounts created there are
 user accounts (they can reserve classrooms); class-schedule management is
@@ -127,7 +127,7 @@ existing database was created. The server binds to `127.0.0.1`; set
 | `ROOMQ_DB_HOST` / `ROOMQ_DB_PORT` | MySQL host / port | `127.0.0.1` / `3306` |
 | `ROOMQ_DB_USER` / `ROOMQ_DB_PASSWORD` | MySQL credentials | `roomq` / (empty) |
 | `ROOMQ_DB_NAME` | Database name | `roomq` |
-| `ROOMQ_ADMIN_USERNAME` / `ROOMQ_ADMIN_PASSWORD` | Initial admin (created once) | `admin` / (required, ≥ 12 chars) |
+| `ROOMQ_ADMIN_EMAIL` / `ROOMQ_ADMIN_PASSWORD` | Initial admin (created once); sign in with email + password | `admin@roomq.local` / (required, ≥ 8 chars) |
 | `ROOMQ_ADMIN_SIGNUP_KEY` | Enables `/api/register-admin` (≥ 16 chars) | disabled |
 | `HOST` / `PORT` | Server bind address | `127.0.0.1` / `3000` |
 | `ROOMQ_DB_POOL_SIZE` | Connection pool size | `10` |
@@ -240,7 +240,7 @@ number of upcoming reservations (see the `ROOMQ_RESERVATION_*` variables).
 Bookings for the same classroom are serialized with a row lock, so two
 simultaneous requests cannot double-book a slot.
 
-Failed sign-ins are limited per client address and username (10 per 15 minutes),
+Failed sign-ins are limited per client address and email (10 per 15 minutes),
 so one account being attacked does not lock out others. Successful account
 creations are limited per client address (10 per 15 minutes).
 

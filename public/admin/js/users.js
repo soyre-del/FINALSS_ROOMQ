@@ -16,8 +16,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const dialogFeedback = byId('userDialogFeedback');
   const saveButton = byId('userSave');
   const field = {
-    username: byId('userUsername'),
-    fullName: byId('userFullName'),
+    firstName: byId('userFirstName'),
+    middleName: byId('userMiddleName'),
+    lastName: byId('userLastName'),
     email: byId('userEmail'),
     role: byId('userRole'),
     password: byId('userPassword'),
@@ -25,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const ROLE_NAMES = { admin: 'Administrator', staff: 'Staff', user: 'User' };
+  const nameOf = (account) => account.fullName || account.email;
   const ROLE_PILLS = {
     admin: 'status-pill-reserved',
     staff: 'status-pill-available',
@@ -32,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   let allowed = false;
-  let currentUsername = null;
+  let currentEmail = null;
   let users = [];
   let editing = null; // the account being edited, or null when creating
 
@@ -78,19 +80,13 @@ document.addEventListener('DOMContentLoaded', () => {
   function render() {
     tableBody.replaceChildren();
     users.forEach((user) => {
-      const isSelf = user.username === currentUsername;
+      const isSelf = user.email === currentEmail;
       const row = document.createElement('tr');
 
       const account = document.createElement('td');
       const name = document.createElement('strong');
-      name.textContent = user.username + (isSelf ? ' (you)' : '');
+      name.textContent = nameOf(user) + (isSelf ? ' (you)' : '');
       account.append(name);
-      if (user.fullName) {
-        const full = document.createElement('div');
-        full.className = 'text-muted small';
-        full.textContent = user.fullName;
-        account.append(full);
-      }
       row.append(account);
 
       const email = document.createElement('td');
@@ -161,12 +157,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function openDialog(user) {
     editing = user || null;
-    const isSelf = Boolean(user && user.username === currentUsername);
-    byId('userDialogHeading').textContent = user ? `Edit ${user.username}` : 'Add user';
+    const isSelf = Boolean(user && user.email === currentEmail);
+    const label = user ? nameOf(user) : '';
+    byId('userDialogHeading').textContent = user ? `Edit ${label}` : 'Add user';
     byId('userDialogKicker').textContent = user ? 'Account details' : 'New account';
-    field.username.value = user ? user.username : '';
-    field.username.readOnly = Boolean(user);
-    field.fullName.value = user && user.fullName ? user.fullName : '';
+    field.firstName.value = user && user.firstName ? user.firstName : '';
+    field.middleName.value = user && user.middleName ? user.middleName : '';
+    field.lastName.value = user && user.lastName ? user.lastName : '';
     field.email.value = user && user.email ? user.email : '';
     field.role.value = user ? user.role : 'staff';
     field.active.value = user ? String(user.isActive) : 'true';
@@ -181,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
       : 'Password (12 to 128 characters)';
     say(dialogFeedback, isSelf ? 'You are editing your own account, so role and status are locked.' : '');
     dialog.showModal();
-    (user ? field.fullName : field.username).focus();
+    field.firstName.focus();
   }
 
   function closeDialog() {
@@ -189,13 +186,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function validate(payload, isNew) {
-    if (isNew && !/^[A-Za-z0-9._-]{3,32}$/.test(payload.username)) {
-      return 'Username must be 3-32 characters using letters, numbers, dots, underscores, or hyphens.';
+    if (!payload.firstName) {
+      return 'Enter a first name.';
+    }
+    if (!payload.lastName) {
+      return 'Enter a last name.';
     }
     if ((isNew || payload.password) && (payload.password.length < 12 || payload.password.length > 128)) {
       return 'Password must be between 12 and 128 characters.';
     }
-    if (payload.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
       return 'Enter a valid email address.';
     }
     return '';
@@ -204,8 +204,9 @@ document.addEventListener('DOMContentLoaded', () => {
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const payload = {
-      username: field.username.value.trim(),
-      fullName: field.fullName.value.trim(),
+      firstName: field.firstName.value.trim(),
+      middleName: field.middleName.value.trim(),
+      lastName: field.lastName.value.trim(),
       email: field.email.value.trim(),
       role: field.role.value,
       password: field.password.value,
@@ -226,17 +227,20 @@ document.addEventListener('DOMContentLoaded', () => {
       request = api.request('/api/users', {
         method: 'POST',
         body: JSON.stringify({
-          username: payload.username,
-          password: payload.password,
-          fullName: payload.fullName,
+          firstName: payload.firstName,
+          middleName: payload.middleName || null,
+          lastName: payload.lastName,
           email: payload.email,
+          password: payload.password,
           role: payload.role,
           isActive: payload.isActive
         })
       });
     } else {
       const changes = {};
-      if (payload.fullName !== (editing.fullName || '')) changes.fullName = payload.fullName;
+      if (payload.firstName !== (editing.firstName || '')) changes.firstName = payload.firstName;
+      if (payload.middleName !== (editing.middleName || '')) changes.middleName = payload.middleName;
+      if (payload.lastName !== (editing.lastName || '')) changes.lastName = payload.lastName;
       if (payload.email !== (editing.email || '')) changes.email = payload.email;
       if (payload.role !== editing.role) changes.role = payload.role;
       if (payload.isActive !== editing.isActive) changes.isActive = payload.isActive;
@@ -246,13 +250,13 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       if (changes.role && !window.confirm(
-        `Change ${editing.username} from ${ROLE_NAMES[editing.role]} to ${ROLE_NAMES[changes.role]}? Their access changes immediately.`
+        `Change ${nameOf(editing)} from ${ROLE_NAMES[editing.role]} to ${ROLE_NAMES[changes.role]}? Their access changes immediately.`
       )) return;
       if (changes.isActive === false && !window.confirm(
-        `Deactivate ${editing.username}? They will be signed out and unable to sign in.`
+        `Deactivate ${nameOf(editing)}? They will be signed out and unable to sign in.`
       )) return;
       if (changes.password && !window.confirm(
-        `Reset the password for ${editing.username}? They will be signed out everywhere.`
+        `Reset the password for ${nameOf(editing)}? They will be signed out everywhere.`
       )) return;
       request = api.request(`/api/users/${editing.id}`, { method: 'PUT', body: JSON.stringify(changes) });
     }
@@ -262,7 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const saved = await request;
       closeDialog();
-      say(feedback, editing ? `Saved changes to ${saved.username}.` : `Created ${saved.username}.`);
+      say(feedback, editing ? `Saved changes to ${nameOf(saved)}.` : `Created ${nameOf(saved)}.`);
       await loadUsers();
     } catch (error) {
       say(dialogFeedback, error.message, true);
@@ -274,15 +278,15 @@ document.addEventListener('DOMContentLoaded', () => {
   async function toggleActive(user) {
     const activating = !user.isActive;
     const question = activating
-      ? `Activate ${user.username}? They will be able to sign in again.`
-      : `Deactivate ${user.username}? They will be signed out and unable to sign in.`;
+      ? `Activate ${nameOf(user)}? They will be able to sign in again.`
+      : `Deactivate ${nameOf(user)}? They will be signed out and unable to sign in.`;
     if (!window.confirm(question)) return;
     try {
       await api.request(`/api/users/${user.id}`, {
         method: 'PUT',
         body: JSON.stringify({ isActive: activating })
       });
-      say(feedback, `${user.username} was ${activating ? 'activated' : 'deactivated'}.`);
+      say(feedback, `${nameOf(user)} was ${activating ? 'activated' : 'deactivated'}.`);
       await loadUsers();
     } catch (error) {
       say(feedback, error.message, true);
@@ -291,11 +295,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function removeUser(user) {
     if (!window.confirm(
-      `Permanently delete ${user.username}? This cannot be undone. Their past activity stays in the audit log.`
+      `Permanently delete ${nameOf(user)}? This cannot be undone. Their past activity stays in the audit log.`
     )) return;
     try {
       await api.request(`/api/users/${user.id}`, { method: 'DELETE' });
-      say(feedback, `${user.username} was deleted.`);
+      say(feedback, `${nameOf(user)} was deleted.`);
       await loadUsers();
     } catch (error) {
       say(feedback, error.message, true);
@@ -318,7 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   api.mountAdminPanel(byId('adminSessionPanel'), (user) => {
     allowed = api.can(user, 'users.manage');
-    currentUsername = user ? user.username : null;
+    currentEmail = user ? user.email : null;
     addButton.disabled = !allowed;
     loadUsers();
   });

@@ -4,7 +4,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const api = window.RoomQApi;
   const summary = document.getElementById('accountSummary');
   const form = document.getElementById('accountForm');
-  const fullName = document.getElementById('accountFullName');
+  const firstName = document.getElementById('accountFirstName');
+  const middleName = document.getElementById('accountMiddleName');
+  const lastName = document.getElementById('accountLastName');
   const email = document.getElementById('accountEmail');
   const feedback = document.getElementById('accountFeedback');
   const save = document.getElementById('accountSave');
@@ -24,7 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
     summary.replaceChildren();
     const memberSince = new Date(`${account.createdAt.replace(' ', 'T')}Z`);
     [
-      ['Username', account.username],
+      ['Account', account.email],
+      ['Full Name', account.fullName || '—'],
       ['Role', roleName[account.role] || account.role],
       ['Status', account.isActive ? 'Active' : 'Deactivated'],
       ['Member since', Number.isNaN(memberSince.getTime())
@@ -43,7 +46,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function fill(account) {
     renderSummary(account);
-    fullName.value = account.fullName || '';
+    if (firstName) firstName.value = account.firstName || '';
+    if (middleName) middleName.value = account.middleName || '';
+    if (lastName) lastName.value = account.lastName || '';
     email.value = account.email || '';
   }
 
@@ -58,7 +63,12 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       fill(await api.request('/api/account', {
         method: 'PUT',
-        body: JSON.stringify({ fullName: fullName.value, email: email.value })
+        body: JSON.stringify({
+          firstName: firstName ? firstName.value : undefined,
+          middleName: middleName ? middleName.value : undefined,
+          lastName: lastName ? lastName.value : undefined,
+          email: email.value
+        })
       }));
       showFeedback(feedback, 'Your details were saved.', false);
     } catch (error) {

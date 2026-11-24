@@ -1,5 +1,21 @@
 const crypto = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
 const mysql = require('mysql2/promise');
+
+// Load .env from project root when running locally (e.g. `npm start`) without
+// overriding variables already set in the environment or by Docker Compose.
+try {
+  const envFile = fs.readFileSync(path.join(__dirname, '..', '.env'), 'utf8');
+  for (const line of envFile.split(/\r?\n/)) {
+    const match = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/.exec(line);
+    if (match && process.env[match[1]] === undefined) {
+      process.env[match[1]] = match[2].replace(/^(['"])(.*)\1$/, '$2');
+    }
+  }
+} catch {
+  // .env is optional (not present inside the Docker container).
+}
 const { buildings } = require('../public/shared/js/roomq-data');
 const { ROLES } = require('./permissions');
 const {
@@ -51,17 +67,18 @@ const SCHEMA_STATEMENTS = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   `CREATE TABLE IF NOT EXISTS users (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    username VARCHAR(32) NOT NULL,
+    first_name VARCHAR(60) NULL DEFAULT NULL,
+    middle_name VARCHAR(60) NULL DEFAULT NULL,
+    last_name VARCHAR(60) NULL DEFAULT NULL,
+    full_name VARCHAR(190) NULL DEFAULT NULL,
+    email VARCHAR(190) NULL DEFAULT NULL,
     password_salt VARCHAR(64) NOT NULL,
     password_hash VARCHAR(128) NOT NULL,
     role ENUM('admin', 'staff', 'user') NOT NULL DEFAULT 'user',
-    full_name VARCHAR(120) NULL DEFAULT NULL,
-    email VARCHAR(190) NULL DEFAULT NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    UNIQUE KEY uq_users_username (username),
     UNIQUE KEY uq_users_email (email),
     KEY idx_users_role_active (role, is_active)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
@@ -110,7 +127,7 @@ const SCHEMA_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS activity_logs (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     actor_user_id INT UNSIGNED NULL DEFAULT NULL,
-    actor_username VARCHAR(32) NOT NULL,
+    actor_email VARCHAR(190) NOT NULL,
     action ENUM('created', 'updated', 'deleted', 'registered', 'signed_in', 'signed_out') NOT NULL,
     entity_type ENUM('schedule', 'reservation', 'user', 'session') NOT NULL,
     entity_id VARCHAR(64) NULL DEFAULT NULL,
@@ -120,7 +137,7 @@ const SCHEMA_STATEMENTS = [
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_activity_logs_created (created_at, id),
-    KEY idx_activity_logs_actor (actor_username),
+    KEY idx_activity_logs_actor (actor_email),
     KEY idx_activity_logs_user (actor_user_id),
     KEY idx_activity_logs_classroom (classroom_id),
     CONSTRAINT fk_activity_logs_user FOREIGN KEY (actor_user_id)
@@ -133,7 +150,7 @@ const SCHEMA_STATEMENTS = [
 function readEnvConfig() {
   return {
     host: process.env.ROOMQ_DB_HOST || '127.0.0.1',
-    port: Number(process.env.ROOMQ_DB_PORT) || 3306,
+    port: Number(process.env.ROOMQ_DB_PORT || process.env.MYSQL_HOST_PORT) || 3306,
     user: process.env.ROOMQ_DB_USER || 'roomq',
     password: process.env.ROOMQ_DB_PASSWORD || '',
     database: process.env.ROOMQ_DB_NAME || 'roomq'
@@ -210,20 +227,77 @@ async function createDatabase(options = {}) {
     );
   }
   const [profileColumns] = await pool.query(
-    `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+    `SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS
      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
-       AND COLUMN_NAME IN ('full_name', 'email', 'is_active', 'updated_at')`
+       AND COLUMN_NAME IN ('username', 'first_name', 'middle_name', 'last_name', 'full_name', 'email', 'is_active', 'updated_at')`
   );
-  if (profileColumns.length < 4) {
-    const present = new Set(profileColumns.map((column) => column.COLUMN_NAME));
-    const additions = [];
-    if (!present.has('full_name')) additions.push('ADD COLUMN full_name VARCHAR(120) NULL DEFAULT NULL');
-    if (!present.has('email')) additions.push('ADD COLUMN email VARCHAR(190) NULL DEFAULT NULL');
-    if (!present.has('is_active')) additions.push('ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1');
-    if (!present.has('updated_at')) {
-      additions.push('ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+  const columnMap = new Map(profileColumns.map((column) => [column.COLUMN_NAME, column]));
+  const userAlterations = [];
+  if (!columnMap.has('first_name')) {
+    userAlterations.push('ADD COLUMN first_name VARCHAR(60) NULL DEFAULT NULL');
+  }
+  if (!columnMap.has('middle_name')) {
+    userAlterations.push('ADD COLUMN middle_name VARCHAR(60) NULL DEFAULT NULL');
+  }
+  if (!columnMap.has('last_name')) {
+    userAlterations.push('ADD COLUMN last_name VARCHAR(60) NULL DEFAULT NULL');
+  }
+  const fullNameCol = columnMap.get('full_name');
+  if (!fullNameCol) {
+    userAlterations.push('ADD COLUMN full_name VARCHAR(190) NULL DEFAULT NULL');
+  } else if (Number(fullNameCol.CHARACTER_MAXIMUM_LENGTH) < 190) {
+    userAlterations.push('MODIFY COLUMN full_name VARCHAR(190) NULL DEFAULT NULL');
+  }
+  if (!columnMap.has('email')) userAlterations.push('ADD COLUMN email VARCHAR(190) NULL DEFAULT NULL');
+  if (!columnMap.has('is_active')) userAlterations.push('ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1');
+  if (!columnMap.has('updated_at')) {
+    userAlterations.push('ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+  }
+  if (userAlterations.length) {
+    await pool.query(`ALTER TABLE users ${userAlterations.join(', ')}`);
+  }
+  // Accounts are identified by email only. Databases that still have the old
+  // username column get an email (and name) for every row, then lose the column.
+  if (columnMap.has('username')) {
+    const adminEmail = String(process.env.ROOMQ_ADMIN_EMAIL || '').trim().toLowerCase();
+    const [legacyRows] = await pool.query(
+      'SELECT id, username, role, email, first_name FROM users ORDER BY id'
+    );
+    let adminAssigned = false;
+    for (const row of legacyRows) {
+      let email = row.email;
+      if (!email) {
+        if (row.role === 'admin' && adminEmail && !adminAssigned) {
+          email = adminEmail;
+        } else {
+          email = `${String(row.username || `user${row.id}`).toLowerCase()}@roomq.local`;
+        }
+      }
+      if (row.role === 'admin') adminAssigned = true;
+      const isAdmin = row.role === 'admin';
+      const firstName = row.first_name || (isAdmin ? 'System' : row.username);
+      const lastName = isAdmin ? 'Administrator' : null;
+      const fullName = [firstName, lastName].filter(Boolean).join(' ');
+      await pool.query(
+        `UPDATE users SET email = ?, first_name = COALESCE(first_name, ?),
+           last_name = COALESCE(last_name, ?), full_name = COALESCE(full_name, ?) WHERE id = ?`,
+        [email, firstName, lastName, fullName, row.id]
+      );
     }
-    await pool.query(`ALTER TABLE users ${additions.join(', ')}`);
+    await pool.query('ALTER TABLE users DROP COLUMN username');
+  }
+  const [actorCol] = await pool.query(
+    `SELECT 1 FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'activity_logs' AND COLUMN_NAME = 'actor_username'`
+  );
+  if (actorCol.length) {
+    await pool.query(
+      'ALTER TABLE activity_logs CHANGE COLUMN actor_username actor_email VARCHAR(190) NOT NULL'
+    );
+    await pool.query(
+      `UPDATE activity_logs a JOIN users u ON u.id = a.actor_user_id
+       SET a.actor_email = u.email WHERE u.email IS NOT NULL`
+    );
   }
   const [userIndexes] = await pool.query(
     `SELECT INDEX_NAME FROM information_schema.STATISTICS
@@ -338,34 +412,54 @@ async function createDatabase(options = {}) {
     }
   }
 
-  async function seedAdmin({ adminUsername: seedUsername, adminPassword: seedPassword } = {}) {
+  async function seedAdmin({ adminEmail: seedEmail, adminPassword: seedPassword } = {}) {
     const existing = await get('SELECT id FROM users LIMIT 1');
     if (existing) {
       return;
     }
-    const adminUsername = seedUsername || process.env.ROOMQ_ADMIN_USERNAME || 'admin';
+    const adminEmail = String(seedEmail || process.env.ROOMQ_ADMIN_EMAIL || 'admin@roomq.local')
+      .trim().toLowerCase();
     const adminPassword = seedPassword || process.env.ROOMQ_ADMIN_PASSWORD;
-    if (!adminPassword || adminPassword.length < 12) {
-      throw new Error('Set ROOMQ_ADMIN_PASSWORD to a password of at least 12 characters before starting RoomQ.');
+    if (!adminPassword || adminPassword.length < 8) {
+      throw new Error('Set ROOMQ_ADMIN_PASSWORD to a password of at least 8 characters before starting RoomQ.');
     }
     const salt = crypto.randomBytes(16);
     const hash = crypto.scryptSync(adminPassword, salt, 64);
     await run(
-      `INSERT INTO users (username, password_salt, password_hash, role)
-       VALUES (?, ?, ?, 'admin')`,
-      [adminUsername, salt.toString('hex'), hash.toString('hex')]
+      `INSERT INTO users (first_name, last_name, full_name, email, password_salt, password_hash, role)
+       VALUES ('System', 'Administrator', 'System Administrator', ?, ?, ?, 'admin')`,
+      [adminEmail, salt.toString('hex'), hash.toString('hex')]
     );
   }
 
   const USER_FIELDS =
-    'id, username, password_salt, password_hash, role, full_name, email, is_active, created_at, updated_at';
+    'id, first_name, middle_name, last_name, password_salt, password_hash, role, full_name, email, is_active, created_at, updated_at';
+
+  function composeFullName({ firstName, middleName, lastName, fullName } = {}) {
+    if (firstName || lastName) {
+      const joined = [firstName, middleName, lastName]
+        .map((part) => (typeof part === 'string' ? part.trim() : ''))
+        .filter(Boolean)
+        .join(' ');
+      if (joined) return joined;
+    }
+    return typeof fullName === 'string' && fullName.trim() ? fullName.trim() : null;
+  }
 
   // Account details that are safe to send to a browser (never the password).
   function mapUser(row) {
+    const fullName = composeFullName({
+      firstName: row.first_name,
+      middleName: row.middle_name,
+      lastName: row.last_name,
+      fullName: row.full_name
+    });
     return {
       id: row.id,
-      username: row.username,
-      fullName: row.full_name,
+      firstName: row.first_name || null,
+      middleName: row.middle_name || null,
+      lastName: row.last_name || null,
+      fullName,
       email: row.email,
       role: row.role,
       isActive: Boolean(row.is_active),
@@ -376,7 +470,9 @@ async function createDatabase(options = {}) {
 
   // What the audit trail keeps about an account: details, never credentials.
   const userSnapshot = (user) => ({
-    username: user.username,
+    firstName: user.firstName,
+    middleName: user.middleName,
+    lastName: user.lastName,
     fullName: user.fullName,
     email: user.email,
     role: user.role,
@@ -397,13 +493,12 @@ async function createDatabase(options = {}) {
   // Turns MySQL's duplicate-key error into a friendly 409 naming the field.
   function duplicateUserError(error) {
     if (error.code !== 'ER_DUP_ENTRY') return error;
-    return String(error.sqlMessage || error.message).includes('uq_users_email')
-      ? conflictError('That email address is already in use.')
-      : conflictError('That username is already in use.');
+    return conflictError('That email address is already in use.');
   }
 
-  async function getUser(username) {
-    return get(`SELECT ${USER_FIELDS} FROM users WHERE username = ?`, [username]);
+  async function getUserByEmail(email) {
+    if (!email) return undefined;
+    return get(`SELECT ${USER_FIELDS} FROM users WHERE email = ? LIMIT 1`, [email]);
   }
 
   async function getUserById(id, executor = pool) {
@@ -411,25 +506,36 @@ async function createDatabase(options = {}) {
     return row ? mapUser(row) : null;
   }
 
-  async function createUser(username, password, role = 'user', profile = {}) {
+  async function createUser({ email, password, role = 'user', ...profile }) {
     if (!ROLES.includes(role)) {
       throw new Error('User role is invalid.');
     }
     const { salt, hash } = hashPassword(password);
+    const firstName = profile.firstName || null;
+    const middleName = profile.middleName || null;
+    const lastName = profile.lastName || null;
+    const fullName = composeFullName({
+      firstName,
+      middleName,
+      lastName,
+      fullName: profile.fullName
+    });
+    let insertId;
     try {
-      await run(
-        `INSERT INTO users (username, password_salt, password_hash, role, full_name, email, is_active)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [username, salt, hash, role, profile.fullName || null, profile.email || null,
+      const result = await run(
+        `INSERT INTO users (first_name, middle_name, last_name, password_salt, password_hash, role, full_name, email, is_active)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [firstName, middleName, lastName, salt, hash, role, fullName, email || null,
           profile.isActive === false ? 0 : 1]
       );
+      insertId = Number(result.insertId);
     } catch (error) {
-      if (error.code === 'ER_DUP_ENTRY' && !String(error.sqlMessage).includes('uq_users_email')) {
-        return null; // username already taken
+      if (error.code === 'ER_DUP_ENTRY') {
+        return null; // email already registered
       }
-      throw duplicateUserError(error);
+      throw error;
     }
-    return getUser(username);
+    return get(`SELECT ${USER_FIELDS} FROM users WHERE id = ?`, [insertId]);
   }
 
   async function listUsers({ q, role, status } = {}) {
@@ -437,8 +543,8 @@ async function createDatabase(options = {}) {
     const values = [];
     if (q) {
       const like = `%${String(q).replace(/[\\%_]/g, '\\$&')}%`;
-      conditions.push('(username LIKE ? OR full_name LIKE ? OR email LIKE ?)');
-      values.push(like, like, like);
+      conditions.push('(first_name LIKE ? OR middle_name LIKE ? OR last_name LIKE ? OR full_name LIKE ? OR email LIKE ?)');
+      values.push(like, like, like, like, like);
     }
     if (role) {
       conditions.push('role = ?');
@@ -450,7 +556,7 @@ async function createDatabase(options = {}) {
     }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const rows = await all(
-      `SELECT ${USER_FIELDS} FROM users ${where} ORDER BY is_active DESC, role, username`,
+      `SELECT ${USER_FIELDS} FROM users ${where} ORDER BY is_active DESC, role, email`,
       values
     );
     return rows.map(mapUser);
@@ -463,7 +569,7 @@ async function createDatabase(options = {}) {
     try {
       await connection.beginTransaction();
       const admins = await all(
-        "SELECT id FROM users WHERE role = 'admin' AND is_active = 1 FOR UPDATE", [], connection
+        "SELECT id FROM users WHERE role = 'admin' AND is_active = 1 ORDER BY id FOR UPDATE", [], connection
       );
       const result = await work(connection, admins.length);
       await connection.commit();
@@ -483,20 +589,30 @@ async function createDatabase(options = {}) {
       const row = await get(`SELECT ${USER_FIELDS} FROM users WHERE id = ? FOR UPDATE`, [id], connection);
       if (!row) throw notFoundError();
       const previous = mapUser(row);
+      const firstName = changes.firstName !== undefined ? changes.firstName : previous.firstName;
+      const middleName = changes.middleName !== undefined ? changes.middleName : previous.middleName;
+      const lastName = changes.lastName !== undefined ? changes.lastName : previous.lastName;
+      const hasNameParts = changes.firstName !== undefined || changes.middleName !== undefined || changes.lastName !== undefined;
       const next = {
-        fullName: changes.fullName !== undefined ? changes.fullName : previous.fullName,
+        firstName,
+        middleName,
+        lastName,
+        fullName: hasNameParts
+          ? composeFullName({ firstName, middleName, lastName, fullName: changes.fullName })
+          : (changes.fullName !== undefined ? changes.fullName : previous.fullName),
         email: changes.email !== undefined ? changes.email : previous.email,
         role: changes.role !== undefined ? changes.role : previous.role,
         isActive: changes.isActive !== undefined ? changes.isActive : previous.isActive
       };
       if (!ROLES.includes(next.role)) throw Object.assign(new Error('User role is invalid.'), { status: 400 });
+      if (!next.email) throw Object.assign(new Error('Every account needs an email address.'), { status: 400 });
       const wasActiveAdmin = previous.role === 'admin' && previous.isActive;
       const staysActiveAdmin = next.role === 'admin' && next.isActive;
       if (wasActiveAdmin && !staysActiveAdmin && activeAdmins <= 1) {
         throw conflictError('RoomQ must keep at least one active administrator. Make another account an administrator first.');
       }
-      const sets = ['full_name = ?', 'email = ?', 'role = ?', 'is_active = ?'];
-      const values = [next.fullName, next.email, next.role, next.isActive ? 1 : 0];
+      const sets = ['first_name = ?', 'middle_name = ?', 'last_name = ?', 'full_name = ?', 'email = ?', 'role = ?', 'is_active = ?'];
+      const values = [next.firstName, next.middleName, next.lastName, next.fullName, next.email, next.role, next.isActive ? 1 : 0];
       if (changes.password) {
         const { salt, hash } = hashPassword(changes.password);
         sets.push('password_salt = ?', 'password_hash = ?');
@@ -538,17 +654,27 @@ async function createDatabase(options = {}) {
 
   // A signed-in account editing its own name and email. Role and status are
   // deliberately not accepted here.
-  async function updateOwnProfile(id, { fullName, email }) {
+  async function updateOwnProfile(id, { firstName, middleName, lastName, fullName, email }) {
     const previous = await getUserById(id);
     if (!previous) throw notFoundError();
+    const nextFirst = firstName !== undefined ? firstName : previous.firstName;
+    const nextMiddle = middleName !== undefined ? middleName : previous.middleName;
+    const nextLast = lastName !== undefined ? lastName : previous.lastName;
+    const hasNameParts = firstName !== undefined || middleName !== undefined || lastName !== undefined;
+    const nextFull = hasNameParts
+      ? composeFullName({ firstName: nextFirst, middleName: nextMiddle, lastName: nextLast, fullName })
+      : (fullName !== undefined ? fullName : previous.fullName);
     try {
-      await run('UPDATE users SET full_name = ?, email = ? WHERE id = ?', [fullName, email, id]);
+      await run(
+        'UPDATE users SET first_name = ?, middle_name = ?, last_name = ?, full_name = ?, email = ? WHERE id = ?',
+        [nextFirst, nextMiddle, nextLast, nextFull, email, id]
+      );
     } catch (error) {
       throw duplicateUserError(error);
     }
     const updated = await getUserById(id);
     await recordActivity(
-      { id: updated.id, username: updated.username }, 'updated', 'user', id, null,
+      { id: updated.id, email: updated.email }, 'updated', 'user', id, null,
       userSnapshot(previous), userSnapshot(updated)
     );
     return updated;
@@ -565,7 +691,7 @@ async function createDatabase(options = {}) {
     );
     const user = await getUserById(id);
     await recordActivity(
-      { id: user.id, username: user.username }, 'updated', 'user', id, null,
+      { id: user.id, email: user.email }, 'updated', 'user', id, null,
       null, { passwordChanged: true }
     );
   }
@@ -583,13 +709,26 @@ async function createDatabase(options = {}) {
     // Role and status are read from the database on every request, so a role
     // change or deactivation takes effect immediately, not at next sign-in.
     const row = await get(
-      `SELECT u.id, u.username, u.role, u.full_name, u.email
+      `SELECT u.id, u.first_name, u.middle_name, u.last_name, u.role, u.full_name, u.email
        FROM auth_sessions s JOIN users u ON u.id = s.user_id
        WHERE s.token_hash = ? AND s.expires_at > ? AND u.is_active = 1`,
       [tokenHash, now]
     );
     return row
-      ? { id: row.id, username: row.username, role: row.role, fullName: row.full_name, email: row.email }
+      ? {
+        id: row.id,
+        firstName: row.first_name || null,
+        middleName: row.middle_name || null,
+        lastName: row.last_name || null,
+        role: row.role,
+        fullName: composeFullName({
+          firstName: row.first_name,
+          middleName: row.middle_name,
+          lastName: row.last_name,
+          fullName: row.full_name
+        }),
+        email: row.email
+      }
       : undefined;
   }
 
@@ -681,7 +820,7 @@ async function createDatabase(options = {}) {
       startTime: row.start_time,
       endTime: row.end_time,
       createdByUserId: row.created_by_user_id,
-      createdByUsername: row.created_by_username,
+      createdByEmail: row.created_by_email,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       classroom: row.classroom_id
@@ -705,7 +844,7 @@ async function createDatabase(options = {}) {
     SELECT s.*, c.building_id, b.name AS building_name, c.floor_id,
       f.label AS floor_label, c.region_id, c.room_number,
       c.name AS classroom_name, c.capacity, c.facilities_json,
-      u.username AS created_by_username
+      u.email AS created_by_email
     FROM schedules s
     LEFT JOIN users u ON u.id = s.created_by_user_id
     LEFT JOIN classrooms c ON c.id = s.classroom_id
@@ -753,17 +892,17 @@ async function createDatabase(options = {}) {
   }
 
   async function recordActivity(actor, action, entityType, entityId, classroomId, previous, updated, executor = pool) {
-    if (!actor || !Number.isSafeInteger(actor.id) || typeof actor.username !== 'string') {
+    if (!actor || !Number.isSafeInteger(actor.id) || typeof actor.email !== 'string') {
       throw new TypeError('An authenticated user is required to record activity.');
     }
     await run(`
       INSERT INTO activity_logs (
-        actor_user_id, actor_username, action, entity_type, entity_id, classroom_id,
+        actor_user_id, actor_email, action, entity_type, entity_id, classroom_id,
         previous_json, updated_json
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       actor.id,
-      actor.username,
+      actor.email,
       action,
       entityType,
       entityId === null || entityId === undefined ? null : String(entityId),
@@ -810,7 +949,7 @@ async function createDatabase(options = {}) {
     `, values);
     return rows.map((row) => ({
       id: row.id,
-      actorUsername: row.actor_username,
+      actorEmail: row.actor_email,
       action: row.action,
       entityType: row.entity_type,
       entityId: row.entity_id,
@@ -1097,7 +1236,7 @@ async function createDatabase(options = {}) {
     getConflicts,
     getDashboard,
     getSchedule,
-    getUser,
+    getUserByEmail,
     getUserById,
     listActivityLogs,
     listBuildings,

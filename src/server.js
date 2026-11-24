@@ -69,23 +69,42 @@ function clientAddress(request) {
 // The signed-in account as the browser sees it. `permissions` lets the UI show
 // or hide controls; the server still enforces every permission itself.
 function publicUser(user) {
+  const firstName = user.firstName !== undefined ? user.firstName : (user.first_name || null);
+  const middleName = user.middleName !== undefined ? user.middleName : (user.middle_name || null);
+  const lastName = user.lastName !== undefined ? user.lastName : (user.last_name || null);
+  const fullName = (user.fullName !== undefined ? user.fullName : user.full_name) ||
+    [firstName, middleName, lastName].filter(Boolean).join(' ') || null;
   return {
-    username: user.username,
+    firstName,
+    middleName,
+    lastName,
+    fullName,
+    email: user.email || null,
     role: user.role,
-    fullName: user.fullName !== undefined ? user.fullName : user.full_name,
     permissions: permissionsFor(user.role)
   };
 }
 
-const USERNAME_PATTERN = /^[A-Za-z0-9._-]{3,32}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function checkUsername(value) {
-  const username = typeof value === 'string' ? value.trim() : '';
-  if (!USERNAME_PATTERN.test(username)) {
-    throw requestError('Username must be 3-32 characters using letters, numbers, dots, underscores, or hyphens.', 400);
+function checkNamePart(value, label, required = false) {
+  if (value === undefined && !required) return undefined;
+  const text = typeof value === 'string' ? value.trim() : '';
+  if (required && !text) {
+    throw requestError(`Enter your ${label}.`, 400);
   }
-  return username;
+  if (text.length > 60) {
+    throw requestError(`Your ${label} must be 60 characters or fewer.`, 400);
+  }
+  return text || null;
+}
+
+function checkRequiredEmail(value) {
+  const email = checkEmail(typeof value === 'string' ? value : '');
+  if (!email) {
+    throw requestError('Enter a valid email address.', 400);
+  }
+  return email;
 }
 
 function checkPassword(value) {
@@ -142,7 +161,7 @@ function requireObject(body) {
 function presentSchedule(schedule, viewer) {
   if (!schedule) return schedule;
   if (viewer && viewer.role === 'admin') return schedule;
-  const { createdByUserId, createdByUsername, ...rest } = schedule;
+  const { createdByUserId, createdByEmail, ...rest } = schedule;
   return { ...rest, ownedByCurrentUser: Boolean(viewer && createdByUserId === viewer.id) };
 }
 const MIME_TYPES = {
@@ -306,21 +325,32 @@ function createServer({
     }
 
     requireObject(body);
-    const username = checkUsername(body.username);
     const password = checkPassword(body.password);
-    const user = await database.createUser(username, password, role);
+    const firstName = checkNamePart(body.firstName, 'first name', true);
+    const middleName = checkNamePart(body.middleName, 'middle name', false);
+    const lastName = checkNamePart(body.lastName, 'last name', true);
+    const email = checkRequiredEmail(body.email);
+    const user = await database.createUser({
+      email, password, role, firstName, middleName, lastName
+    });
     if (!user) {
-      throw requestError('That username is already in use.', 409);
+      throw requestError('That email address is already in use.', 409);
     }
     attempt.count += 1;
     await database.recordActivity(
-      { id: user.id, username: user.username },
+      { id: user.id, email: user.email },
       'registered',
       'user',
       user.id,
       null,
       null,
-      { username: user.username, role: user.role }
+      {
+        firstName: user.first_name || null,
+        middleName: user.middle_name || null,
+        lastName: user.last_name || null,
+        email: user.email,
+        role: user.role
+      }
     );
     await createAuthenticatedSession(request, response, user);
   }
@@ -630,9 +660,11 @@ function createServer({
     }
     if (pathname === '/api/login' && method === 'POST') {
       const body = await readJson(request);
-      const username = body && typeof body.username === 'string' ? body.username.trim() : '';
+      const rawIdentifier = body && typeof body.email === 'string'
+        ? body.email.trim().toLowerCase()
+        : '';
       const password = body && typeof body.password === 'string' ? body.password : '';
-      const limitKey = `${clientAddress(request)}|${username.toLowerCase()}`;
+      const limitKey = `${clientAddress(request)}|${rawIdentifier}`;
       const attempt = rateEntry(failedLogins, limitKey);
       if (attempt.count >= MAX_FAILED_LOGINS) {
         throw requestError('Too many sign-in attempts for this account. Try again later.', 429);
@@ -641,11 +673,11 @@ function createServer({
       if (role !== undefined && !ROLES.includes(role)) {
         throw requestError('Choose an administrator, staff or user account.', 400);
       }
-      const user = await database.getUser(username);
+      const user = await database.getUserByEmail(rawIdentifier);
       if (!user || (role && user.role !== role) ||
           !verifyPassword(password, user.password_salt, user.password_hash)) {
         attempt.count += 1;
-        throw requestError('Username or password is incorrect.', 401);
+        throw requestError('Email or password is incorrect.', 401);
       }
       // Checked only after the password is verified, so a wrong guess cannot
       // be used to discover which usernames belong to deactivated accounts.
@@ -654,7 +686,7 @@ function createServer({
       }
       failedLogins.delete(limitKey);
       await database.recordActivity(
-        { id: user.id, username: user.username },
+        { id: user.id, email: user.email },
         'signed_in',
         'session',
         null,
@@ -671,7 +703,7 @@ function createServer({
         const user = await getCurrentUser(request);
         if (user) {
           await database.recordActivity(
-            { id: user.id, username: user.username },
+            { id: user.id, email: user.email },
             'signed_out',
             'session',
             null,
@@ -882,12 +914,22 @@ function createServer({
         throw requestError('You cannot change your own role or account status.', 403);
       }
       const current = await database.getUserById(user.id);
+      const firstName = checkNamePart(body.firstName, 'first name', false);
+      const middleName = checkNamePart(body.middleName, 'middle name', false);
+      const lastName = checkNamePart(body.lastName, 'last name', false);
       const fullName = checkFullName(body.fullName);
       const email = checkEmail(body.email);
-      if (fullName === undefined && email === undefined) {
+      if (email === null) {
+        throw requestError('Enter a valid email address.', 400);
+      }
+      if (firstName === undefined && middleName === undefined && lastName === undefined &&
+          fullName === undefined && email === undefined) {
         throw requestError('Provide a name or email address to update.', 400);
       }
       const updated = await database.updateOwnProfile(user.id, {
+        firstName,
+        middleName,
+        lastName,
         fullName: fullName === undefined ? current.fullName : fullName,
         email: email === undefined ? current.email : email
       });
@@ -901,7 +943,7 @@ function createServer({
       if (attempt.count >= MAX_FAILED_LOGINS) {
         throw requestError('Too many incorrect password attempts. Try again later.', 429);
       }
-      const record = await database.getUser(user.username);
+      const record = await database.getUserByEmail(user.email);
       const currentPassword = typeof body.currentPassword === 'string' ? body.currentPassword : '';
       if (!record || !verifyPassword(currentPassword, record.password_salt, record.password_hash)) {
         attempt.count += 1;
@@ -933,21 +975,26 @@ function createServer({
     if (pathname === '/api/users' && method === 'POST') {
       const actor = await requirePermission(request, PERMISSIONS.USERS_MANAGE);
       const body = requireObject(await readJson(request));
-      const username = checkUsername(body.username);
       const password = checkPassword(body.password);
       const role = body.role === undefined ? 'staff' : checkRole(body.role);
-      const fullName = checkFullName(body.fullName);
-      const email = checkEmail(body.email);
+      const firstName = checkNamePart(body.firstName, 'first name', true);
+      const middleName = checkNamePart(body.middleName, 'middle name', false);
+      const lastName = checkNamePart(body.lastName, 'last name', true);
+      const email = checkRequiredEmail(body.email);
       const isActive = checkBoolean(body.isActive, 'Active');
-      const created = await database.createUser(username, password, role, { fullName, email, isActive });
+      const created = await database.createUser({
+        email, password, role, firstName, middleName, lastName, isActive
+      });
       if (!created) {
-        throw requestError('That username is already in use.', 409);
+        throw requestError('That email address is already in use.', 409);
       }
       const account = await database.getUserById(created.id);
       await database.recordActivity(
         actor, 'created', 'user', account.id, null, null,
         {
-          username: account.username,
+          firstName: account.firstName,
+          middleName: account.middleName,
+          lastName: account.lastName,
           fullName: account.fullName,
           email: account.email,
           role: account.role,
@@ -975,6 +1022,9 @@ function createServer({
       if (method === 'PUT') {
         const body = requireObject(await readJson(request));
         const changes = {};
+        if (body.firstName !== undefined) changes.firstName = checkNamePart(body.firstName, 'first name', false);
+        if (body.middleName !== undefined) changes.middleName = checkNamePart(body.middleName, 'middle name', false);
+        if (body.lastName !== undefined) changes.lastName = checkNamePart(body.lastName, 'last name', false);
         if (body.fullName !== undefined) changes.fullName = checkFullName(body.fullName);
         if (body.email !== undefined) changes.email = checkEmail(body.email);
         if (body.role !== undefined) changes.role = checkRole(body.role);

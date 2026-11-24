@@ -120,7 +120,9 @@
             <div class="schedule-section-heading"><div><p class="panel-kicker">Profile</p><h2 id="accountInfoHeading">Account information</h2></div></div>
             <dl class="room-detail-list" id="accountSummary"></dl>
             <form id="accountForm" class="roomq-form" novalidate>
-              <label class="assignment-field"><span>Full name</span><input type="text" id="accountFullName" class="form-control" maxlength="120" autocomplete="name" /></label>
+              <label class="assignment-field"><span>First Name</span><input type="text" id="accountFirstName" class="form-control" maxlength="60" autocomplete="given-name" /></label>
+              <label class="assignment-field"><span>Middle Name (Optional)</span><input type="text" id="accountMiddleName" class="form-control" maxlength="60" autocomplete="additional-name" /></label>
+              <label class="assignment-field"><span>Last Name</span><input type="text" id="accountLastName" class="form-control" maxlength="60" autocomplete="family-name" /></label>
               <label class="assignment-field"><span>Email address</span><input type="email" id="accountEmail" class="form-control" maxlength="190" autocomplete="email" /></label>
               <div class="schedule-form-actions"><button type="submit" class="btn btn-primary assignment-submit" id="accountSave"><i class="bi bi-check2"></i> Save changes</button></div>
               <p id="accountFeedback" class="assignment-feedback" role="status"></p>

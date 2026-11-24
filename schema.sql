@@ -69,17 +69,18 @@ CREATE TABLE IF NOT EXISTS `classrooms` (
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `users` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `username` VARCHAR(32) NOT NULL,
+  `first_name` VARCHAR(60) NULL DEFAULT NULL,
+  `middle_name` VARCHAR(60) NULL DEFAULT NULL,
+  `last_name` VARCHAR(60) NULL DEFAULT NULL,
+  `full_name` VARCHAR(190) NULL DEFAULT NULL,
+  `email` VARCHAR(190) NULL DEFAULT NULL,
   `password_salt` VARCHAR(64) NOT NULL,
   `password_hash` VARCHAR(128) NOT NULL,
   `role` ENUM('admin', 'staff', 'user') NOT NULL DEFAULT 'user',
-  `full_name` VARCHAR(120) NULL DEFAULT NULL,
-  `email` VARCHAR(190) NULL DEFAULT NULL,
   `is_active` TINYINT(1) NOT NULL DEFAULT 1,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_users_username` (`username`),
   UNIQUE KEY `uq_users_email` (`email`),
   KEY `idx_users_role_active` (`role`, `is_active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -143,7 +144,7 @@ CREATE TABLE IF NOT EXISTS `schedules` (
 CREATE TABLE IF NOT EXISTS `activity_logs` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `actor_user_id` INT UNSIGNED NULL DEFAULT NULL,
-  `actor_username` VARCHAR(32) NOT NULL,
+  `actor_email` VARCHAR(190) NOT NULL,
   `action` ENUM('created', 'updated', 'deleted', 'registered', 'signed_in', 'signed_out') NOT NULL,
   `entity_type` ENUM('schedule', 'reservation', 'user', 'session') NOT NULL,
   `entity_id` VARCHAR(64) NULL DEFAULT NULL,
@@ -153,7 +154,7 @@ CREATE TABLE IF NOT EXISTS `activity_logs` (
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_activity_logs_created` (`created_at`, `id`),
-  KEY `idx_activity_logs_actor` (`actor_username`),
+  KEY `idx_activity_logs_actor` (`actor_email`),
   KEY `idx_activity_logs_user` (`actor_user_id`),
   KEY `idx_activity_logs_classroom` (`classroom_id`),
   CONSTRAINT `fk_activity_logs_user`

@@ -6,19 +6,19 @@ services:
     container_name: roomq-db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${ROOMQ_DB_NAME}
-      MYSQL_USER: ${ROOMQ_DB_USER}
-      MYSQL_PASSWORD: ${ROOMQ_DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-laurence}
+      MYSQL_DATABASE: ${ROOMQ_DB_NAME:-roomq}
+      MYSQL_USER: ${ROOMQ_DB_USER:-roomq}
+      MYSQL_PASSWORD: ${ROOMQ_DB_PASSWORD:-laurence}
     # Persist data across container restarts.
     volumes:
       - roomq-db-data:/var/lib/mysql
     ports:
       # Published on localhost only so other machines on the network cannot
       # reach the database. Change the left-hand port freely.
-      - "127.0.0.1:${MYSQL_HOST_PORT:-3307}:3306"
+      - "127.0.0.1:${MYSQL_HOST_PORT:-3308}:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-laurence}"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -40,12 +40,12 @@ services:
       # Connect to the database by its Docker service name, not localhost.
       ROOMQ_DB_HOST: db
       ROOMQ_DB_PORT: 3306
-      ROOMQ_DB_NAME: ${ROOMQ_DB_NAME}
-      ROOMQ_DB_USER: ${ROOMQ_DB_USER}
-      ROOMQ_DB_PASSWORD: ${ROOMQ_DB_PASSWORD}
-      ROOMQ_ADMIN_USERNAME: ${ROOMQ_ADMIN_USERNAME}
-      ROOMQ_ADMIN_PASSWORD: ${ROOMQ_ADMIN_PASSWORD}
-      ROOMQ_ADMIN_SIGNUP_KEY: ${ROOMQ_ADMIN_SIGNUP_KEY}
+      ROOMQ_DB_NAME: ${ROOMQ_DB_NAME:-roomq}
+      ROOMQ_DB_USER: ${ROOMQ_DB_USER:-roomq}
+      ROOMQ_DB_PASSWORD: ${ROOMQ_DB_PASSWORD:-laurence}
+      ROOMQ_ADMIN_EMAIL: ${ROOMQ_ADMIN_EMAIL:-admin@roomq.local}
+      ROOMQ_ADMIN_PASSWORD: ${ROOMQ_ADMIN_PASSWORD:-admin123}
+      ROOMQ_ADMIN_SIGNUP_KEY: ${ROOMQ_ADMIN_SIGNUP_KEY:-change-me-admin-signup-key-16chars}
       # Campus clock used for reservation rules ("today", "already started").
       ROOMQ_TIMEZONE: ${ROOMQ_TIMEZONE:-Asia/Manila}
       # Set to true only behind an HTTPS reverse proxy that sets X-Forwarded-*.
@@ -58,6 +58,12 @@ services:
     ports:
       # The app itself is reachable from other devices on the network.
       - "${BACKEND_HOST_PORT:-8080}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     networks:
       - roomq-net
 
