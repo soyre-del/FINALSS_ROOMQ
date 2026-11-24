@@ -22,6 +22,24 @@ const RESERVATION_MAX_MINUTES = envInt('ROOMQ_RESERVATION_MAX_MINUTES', 240);
 const RESERVATION_HORIZON_DAYS = envInt('ROOMQ_RESERVATION_HORIZON_DAYS', 90);
 const RESERVATION_MAX_ACTIVE = envInt('ROOMQ_RESERVATION_MAX_ACTIVE', 5);
 
+// Target response time for core database operations (add, edit, delete, view
+// reservations). Requests slower than this are counted and logged so the
+// target can be checked against real use.
+const RESPONSE_TIME_TARGET_MS = envInt('ROOMQ_RESPONSE_TARGET_MS', 2000);
+
+// Sign-up is limited to the university's own email domains when this is set.
+// Empty means any address is accepted. Read when checking rather than at load
+// so the setting can be changed (and tested) without restarting the module.
+function allowedEmailDomains() {
+  return String(process.env.ROOMQ_ALLOWED_EMAIL_DOMAINS || '')
+    .split(',')
+    .map((domain) => domain.trim().toLowerCase().replace(/^@/, ''))
+    .filter(Boolean);
+}
+
+// School ID as printed on a university ID card: letters, digits and hyphens.
+const SCHOOL_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9-]{3,31}$/;
+
 // Staff portal pages that exist only under public/staff, and the existing
 // admin pages/scripts that staff are allowed to use at /staff/<name>.
 const STAFF_OWN_PAGES = new Set(['dashboard.html', 'account.html']);
@@ -105,6 +123,42 @@ function checkRequiredEmail(value) {
     throw requestError('Enter a valid email address.', 400);
   }
   return email;
+}
+
+// Restricts self-registration to authorized university addresses. Accounts an
+// administrator creates are exempt: the administrator is the authorizing party.
+function checkUniversityEmail(value) {
+  const email = checkRequiredEmail(value);
+  const domains = allowedEmailDomains();
+  if (!domains.length) {
+    return email;
+  }
+  const domain = email.slice(email.lastIndexOf('@') + 1);
+  const allowed = domains.some(
+    (candidate) => domain === candidate || domain.endsWith(`.${candidate}`)
+  );
+  if (!allowed) {
+    throw requestError(
+      `Use your university email address (${domains.map((d) => `@${d}`).join(' or ')}).`,
+      400
+    );
+  }
+  return email;
+}
+
+function checkSchoolId(value, required = false) {
+  if (value === undefined && !required) return undefined;
+  const text = typeof value === 'string' ? value.trim() : '';
+  if (!text) {
+    if (required) {
+      throw requestError('Enter your school ID number.', 400);
+    }
+    return null;
+  }
+  if (!SCHOOL_ID_PATTERN.test(text)) {
+    throw requestError('School ID must be 4-32 characters using letters, numbers or hyphens.', 400);
+  }
+  return text;
 }
 
 function checkPassword(value) {
@@ -208,6 +262,76 @@ function requestError(message, status) {
   return error;
 }
 
+// Rolling record of how long API requests take, so the two-second target for
+// core database operations can be measured rather than assumed. Kept in memory
+// (the most recent samples only) and read back through /api/performance.
+function createPerformanceMonitor(targetMs, sampleSize = 500) {
+  const samples = [];
+  const byRoute = new Map();
+  let total = 0;
+  let slow = 0;
+
+  return {
+    targetMs,
+    record(route, durationMs) {
+      total += 1;
+      if (durationMs > targetMs) {
+        slow += 1;
+        console.warn(
+          `RoomQ slow response: ${route} took ${durationMs.toFixed(0)}ms (target ${targetMs}ms).`
+        );
+      }
+      samples.push(durationMs);
+      if (samples.length > sampleSize) samples.shift();
+      const entry = byRoute.get(route) || { route, count: 0, totalMs: 0, maxMs: 0, slow: 0 };
+      entry.count += 1;
+      entry.totalMs += durationMs;
+      entry.maxMs = Math.max(entry.maxMs, durationMs);
+      if (durationMs > targetMs) entry.slow += 1;
+      byRoute.set(route, entry);
+    },
+    snapshot() {
+      const sorted = [...samples].sort((left, right) => left - right);
+      const percentile = (fraction) => (sorted.length
+        ? sorted[Math.min(sorted.length - 1, Math.floor(fraction * sorted.length))]
+        : 0);
+      const round = (value) => Math.round(value * 10) / 10;
+      return {
+        targetMs,
+        totalRequests: total,
+        sampled: sorted.length,
+        slowRequests: slow,
+        withinTargetPercent: total ? round(((total - slow) / total) * 100) : 100,
+        averageMs: sorted.length ? round(sorted.reduce((a, b) => a + b, 0) / sorted.length) : 0,
+        medianMs: round(percentile(0.5)),
+        p95Ms: round(percentile(0.95)),
+        maxMs: round(sorted.length ? sorted[sorted.length - 1] : 0),
+        meetsTarget: slow === 0,
+        routes: [...byRoute.values()]
+          .map((entry) => ({
+            route: entry.route,
+            count: entry.count,
+            averageMs: round(entry.totalMs / entry.count),
+            maxMs: round(entry.maxMs),
+            slow: entry.slow
+          }))
+          .sort((left, right) => right.averageMs - left.averageMs)
+          .slice(0, 12)
+      };
+    }
+  };
+}
+
+// Collapses "/api/schedules/37" to "/api/schedules/:id" so metrics group by
+// endpoint rather than by individual record.
+function routeLabel(method, pathname) {
+  const generic = pathname
+    .replace(/^\/api\/users\/\d+$/, '/api/users/:id')
+    .replace(/^\/api\/schedules\/\d+$/, '/api/schedules/:id')
+    .replace(/^\/api\/classrooms\/[^/]+$/, '/api/classrooms/:id');
+  return `${method} ${generic}`;
+}
+
 async function readJson(request) {
   if (!String(request.headers['content-type'] || '').toLowerCase().startsWith('application/json')) {
     throw requestError('Send request data as JSON.', 415);
@@ -245,6 +369,7 @@ function createServer({
   const failedLogins = new Map();
   const registrations = new Map();
   const resolvedRoot = path.resolve(root);
+  const performance = createPerformanceMonitor(RESPONSE_TIME_TARGET_MS);
 
   function rateEntry(map, key) {
     const now = Date.now();
@@ -329,9 +454,11 @@ function createServer({
     const firstName = checkNamePart(body.firstName, 'first name', true);
     const middleName = checkNamePart(body.middleName, 'middle name', false);
     const lastName = checkNamePart(body.lastName, 'last name', true);
-    const email = checkRequiredEmail(body.email);
+    // Identity details: a school ID and an authorized university address.
+    const email = checkUniversityEmail(body.email);
+    const schoolId = checkSchoolId(body.schoolId, true);
     const user = await database.createUser({
-      email, password, role, firstName, middleName, lastName
+      email, password, role, firstName, middleName, lastName, schoolId
     });
     if (!user) {
       throw requestError('That email address is already in use.', 409);
@@ -355,11 +482,11 @@ function createServer({
     await createAuthenticatedSession(request, response, user);
   }
 
-  // Rules for reservations made by user accounts. Returns the sanitized input
-  // to save. Administrators are not subject to these limits.
+  // Rules for reservations made by faculty accounts. Returns the sanitized
+  // input to save. Administrators and staff are not subject to these limits.
   async function applyUserReservationPolicy(body, user, excludeId) {
     if (!body || body.kind !== 'reservation') {
-      throw requestError('User accounts can create room reservations only.', 403);
+      throw requestError('Your account can create room reservations only.', 403);
     }
     if (body.recurrence !== undefined && body.recurrence !== 'once') {
       throw requestError('Reservations must be for a single date.', 400);
@@ -642,6 +769,13 @@ function createServer({
       sendJson(response, 200, { status: 'ok' });
       return;
     }
+    // Measured response times for core operations against the project's
+    // two-second target. Part of the reports an administrator can review.
+    if (pathname === '/api/performance' && method === 'GET') {
+      await requirePermission(request, PERMISSIONS.REPORTS_VIEW);
+      sendJson(response, 200, performance.snapshot());
+      return;
+    }
     if (pathname === '/api/me' && method === 'GET') {
       const user = await getCurrentUser(request);
       sendJson(response, 200, {
@@ -651,7 +785,9 @@ function createServer({
       return;
     }
     if (pathname === '/api/register' && method === 'POST') {
-      await registerAccount(request, response, 'user');
+      // Self-registration always creates a student. An administrator promotes
+      // an account to faculty or staff after verifying who they are.
+      await registerAccount(request, response, 'student');
       return;
     }
     if (pathname === '/api/register-admin' && method === 'POST') {
@@ -843,9 +979,16 @@ function createServer({
       if (!body || typeof body !== 'object' || Array.isArray(body)) {
         throw requestError('Provide schedule details.', 400);
       }
-      // Administrators and staff may add class schedules and reservations; plain
-      // user accounts are limited to reservations under the booking rules.
+      // Administrators and staff may add class schedules and reservations;
+      // faculty may reserve rooms under the booking rules; students may not
+      // book at all.
       if (!can(user, PERMISSIONS.SCHEDULES_CREATE)) {
+        if (!can(user, PERMISSIONS.RESERVATIONS_CREATE)) {
+          throw requestError(
+            'Student accounts can view classrooms and schedules but cannot reserve rooms.',
+            403
+          );
+        }
         body = await applyUserReservationPolicy(body, user, null);
       }
       const schedule = await database.saveSchedule(body, undefined, user);
@@ -866,6 +1009,12 @@ function createServer({
       const needed = method === 'PUT' ? PERMISSIONS.SCHEDULES_UPDATE : PERMISSIONS.SCHEDULES_DELETE;
       const ownReservationOnly = !can(user, needed);
       if (ownReservationOnly) {
+        if (!can(user, PERMISSIONS.RESERVATIONS_CREATE)) {
+          throw requestError(
+            'Student accounts can view classrooms and schedules but cannot change bookings.',
+            403
+          );
+        }
         await requireReservationOwner(user, id);
       }
       if (method === 'PUT') {
@@ -884,6 +1033,45 @@ function createServer({
         throw requestError('Schedule not found.', 404);
       }
       sendJson(response, 200, { deleted: true });
+      return;
+    }
+    // Classroom records: administrators maintain seating capacity and the
+    // facilities a room offers, which are what the availability filters use.
+    const classroomRoute = /^\/api\/classrooms\/([A-Za-z0-9-]{1,128})$/.exec(pathname);
+    if (classroomRoute && method === 'PUT') {
+      const actor = await requirePermission(request, PERMISSIONS.CLASSROOMS_MANAGE);
+      const body = requireObject(await readJson(request));
+      const changes = {};
+      if (body.capacity !== undefined) {
+        if (body.capacity === null || body.capacity === '') {
+          changes.capacity = null;
+        } else {
+          const capacity = Number(body.capacity);
+          if (!Number.isSafeInteger(capacity) || capacity < 1 || capacity > 2000) {
+            throw requestError('Capacity must be a whole number between 1 and 2000.', 400);
+          }
+          changes.capacity = capacity;
+        }
+      }
+      if (body.facilities !== undefined) {
+        if (!Array.isArray(body.facilities)) {
+          throw requestError('Facilities must be a list.', 400);
+        }
+        const facilities = [...new Set(body.facilities
+          .map((item) => (typeof item === 'string' ? item.trim() : ''))
+          .filter(Boolean))];
+        if (facilities.length > 20 || facilities.some((item) => item.length > 60)) {
+          throw requestError('Use at most 20 facilities, each 60 characters or fewer.', 400);
+        }
+        if (JSON.stringify(facilities).length > 2000) {
+          throw requestError('That facility list is too long.', 400);
+        }
+        changes.facilities = facilities;
+      }
+      if (!Object.keys(changes).length) {
+        throw requestError('Provide a capacity or facility list to update.', 400);
+      }
+      sendJson(response, 200, await database.updateClassroom(classroomRoute[1], changes, actor));
       return;
     }
     if (pathname === '/api/conflicts' && method === 'GET') {
@@ -908,10 +1096,14 @@ function createServer({
     if (pathname === '/api/account' && method === 'PUT') {
       const user = await requireUser(request);
       const body = requireObject(await readJson(request));
-      // Role and status are never editable from a profile request, whatever
-      // the client sends.
+      // Role, status and school ID are never editable from a profile request,
+      // whatever the client sends: they are identity and authorization data
+      // that only an administrator may set.
       if ('role' in body || 'isActive' in body || 'permissions' in body) {
         throw requestError('You cannot change your own role or account status.', 403);
+      }
+      if ('schoolId' in body) {
+        throw requestError('Ask an administrator to correct your school ID.', 403);
       }
       const current = await database.getUserById(user.id);
       const firstName = checkNamePart(body.firstName, 'first name', false);
@@ -981,9 +1173,10 @@ function createServer({
       const middleName = checkNamePart(body.middleName, 'middle name', false);
       const lastName = checkNamePart(body.lastName, 'last name', true);
       const email = checkRequiredEmail(body.email);
+      const schoolId = checkSchoolId(body.schoolId, false);
       const isActive = checkBoolean(body.isActive, 'Active');
       const created = await database.createUser({
-        email, password, role, firstName, middleName, lastName, isActive
+        email, password, role, firstName, middleName, lastName, schoolId, isActive
       });
       if (!created) {
         throw requestError('That email address is already in use.', 409);
@@ -1027,6 +1220,7 @@ function createServer({
         if (body.lastName !== undefined) changes.lastName = checkNamePart(body.lastName, 'last name', false);
         if (body.fullName !== undefined) changes.fullName = checkFullName(body.fullName);
         if (body.email !== undefined) changes.email = checkEmail(body.email);
+        if (body.schoolId !== undefined) changes.schoolId = checkSchoolId(body.schoolId, false);
         if (body.role !== undefined) changes.role = checkRole(body.role);
         if (body.isActive !== undefined) changes.isActive = checkBoolean(body.isActive, 'Active');
         if (body.password !== undefined && body.password !== '') {
@@ -1082,6 +1276,13 @@ function createServer({
       return;
     }
 
+    const startedAt = process.hrtime.bigint();
+    response.on('finish', () => {
+      performance.record(
+        routeLabel(request.method, url.pathname),
+        Number(process.hrtime.bigint() - startedAt) / 1e6
+      );
+    });
     handleApi(request, response, url).catch((error) => handleError(response, error));
   });
 }
