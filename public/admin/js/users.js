@@ -20,17 +20,19 @@ document.addEventListener('DOMContentLoaded', () => {
     middleName: byId('userMiddleName'),
     lastName: byId('userLastName'),
     email: byId('userEmail'),
+    schoolId: byId('userSchoolId'),
     role: byId('userRole'),
     password: byId('userPassword'),
     active: byId('userActive')
   };
 
-  const ROLE_NAMES = { admin: 'Administrator', staff: 'Staff', user: 'User' };
+  const ROLE_NAMES = { admin: 'Administrator', staff: 'Staff', faculty: 'Faculty', student: 'Student' };
   const nameOf = (account) => account.fullName || account.email;
   const ROLE_PILLS = {
     admin: 'status-pill-reserved',
     staff: 'status-pill-available',
-    user: 'status-pill-occupied'
+    faculty: 'status-pill-available',
+    student: 'status-pill-occupied'
   };
 
   let allowed = false;
@@ -92,6 +94,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const email = document.createElement('td');
       email.textContent = user.email || '—';
       row.append(email);
+
+      const schoolId = document.createElement('td');
+      schoolId.textContent = user.schoolId || '—';
+      row.append(schoolId);
 
       const role = document.createElement('td');
       role.append(pill(ROLE_NAMES[user.role] || user.role, ROLE_PILLS[user.role] || 'status-pill-occupied'));
@@ -165,6 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
     field.middleName.value = user && user.middleName ? user.middleName : '';
     field.lastName.value = user && user.lastName ? user.lastName : '';
     field.email.value = user && user.email ? user.email : '';
+    if (field.schoolId) field.schoolId.value = user && user.schoolId ? user.schoolId : '';
     field.role.value = user ? user.role : 'staff';
     field.active.value = user ? String(user.isActive) : 'true';
     // Your own role and status are changed by another administrator, so you
@@ -198,6 +205,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
       return 'Enter a valid email address.';
     }
+    if (payload.schoolId && !/^[A-Za-z0-9][A-Za-z0-9-]{3,31}$/.test(payload.schoolId)) {
+      return 'School ID must be 4-32 characters using letters, numbers or hyphens.';
+    }
     return '';
   }
 
@@ -208,6 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
       middleName: field.middleName.value.trim(),
       lastName: field.lastName.value.trim(),
       email: field.email.value.trim(),
+      schoolId: field.schoolId ? field.schoolId.value.trim() : '',
       role: field.role.value,
       password: field.password.value,
       isActive: field.active.value === 'true'
@@ -231,6 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
           middleName: payload.middleName || null,
           lastName: payload.lastName,
           email: payload.email,
+          schoolId: payload.schoolId,
           password: payload.password,
           role: payload.role,
           isActive: payload.isActive
@@ -242,6 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (payload.middleName !== (editing.middleName || '')) changes.middleName = payload.middleName;
       if (payload.lastName !== (editing.lastName || '')) changes.lastName = payload.lastName;
       if (payload.email !== (editing.email || '')) changes.email = payload.email;
+      if (payload.schoolId !== (editing.schoolId || '')) changes.schoolId = payload.schoolId;
       if (payload.role !== editing.role) changes.role = payload.role;
       if (payload.isActive !== editing.isActive) changes.isActive = payload.isActive;
       if (payload.password) changes.password = payload.password;
