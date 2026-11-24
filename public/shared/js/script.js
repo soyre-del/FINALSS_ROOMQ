@@ -64,7 +64,8 @@ async function syncSessionAndNavigation() {
   const hasPermission = (permission) =>
     Boolean(currentUser && Array.isArray(currentUser.permissions) &&
       currentUser.permissions.includes(permission));
-  const roleLabel = (role) => ({ admin: 'Administrator', staff: 'Staff' }[role] || 'Student / User');
+  const roleLabel = (role) =>
+    ({ admin: 'Administrator', staff: 'Staff', faculty: 'Faculty', student: 'Student' }[role] || 'User');
   const displayName = (user) => user.fullName || user.email;
 
   // Access control guard (the server enforces the same rule; this covers pages
@@ -99,7 +100,8 @@ async function syncSessionAndNavigation() {
       'conflicts.html': 'conflicts.view',
       'reports.html': 'reports.view',
       'activity-logs.html': 'activity.view',
-      'users.html': 'users.manage'
+      'users.html': 'users.manage',
+      'rooms.html': 'classrooms.manage'
     };
     document.querySelectorAll(
       '.sidebar-nav a.nav-item, .dropdown-menu a.dropdown-item, .workspace-footer-links a'

@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const passwordSave = document.getElementById('passwordSave');
   const defaultPasswordNote = passwordFeedback.textContent;
 
-  const roleName = { admin: 'Administrator', staff: 'Staff', user: 'User' };
+  const roleName = { admin: 'Administrator', staff: 'Staff', faculty: 'Faculty', student: 'Student' };
 
   function showFeedback(element, message, isError) {
     element.textContent = message;

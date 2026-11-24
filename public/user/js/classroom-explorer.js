@@ -920,7 +920,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   updateBuilding(query.get('floor') || undefined);
   window.RoomQApi.mountAdminPanel(roomBookingAuthPanel, (user) => {
-    bookingAuthenticated = Boolean(user && ['admin', 'staff', 'user'].includes(user.role));
+    // Students may browse and inspect rooms, but only accounts that hold the
+    // reservation permission (administrators, staff and faculty) may book.
+    bookingAuthenticated = window.RoomQApi.can(user, 'reservations.create');
     roomBookingSubmit.disabled = !bookingAuthenticated;
     roomBookingAuthNote.textContent = bookingAuthenticated
       ? 'You are signed in and can confirm this reservation.'
