@@ -17,6 +17,7 @@ try {
   // .env is optional (not present inside the Docker container).
 }
 const { buildings } = require('../public/shared/js/roomq-data');
+const { createCipherBox } = require('./crypto-box');
 const { ROLES } = require('./permissions');
 const {
   appliesOnDate,
@@ -74,12 +75,17 @@ const SCHEMA_STATEMENTS = [
     email VARCHAR(190) NULL DEFAULT NULL,
     password_salt VARCHAR(64) NOT NULL,
     password_hash VARCHAR(128) NOT NULL,
-    role ENUM('admin', 'staff', 'user') NOT NULL DEFAULT 'user',
+    role ENUM('admin', 'staff', 'faculty', 'student') NOT NULL DEFAULT 'student',
+    -- School ID is personal data, so it is stored AES-256-GCM encrypted. The
+    -- blind index is a keyed hash used only to keep it unique and searchable.
+    school_id_cipher VARCHAR(255) NULL DEFAULT NULL,
+    school_id_index CHAR(64) NULL DEFAULT NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_users_email (email),
+    UNIQUE KEY uq_users_school_id (school_id_index),
     KEY idx_users_role_active (role, is_active)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   `CREATE TABLE IF NOT EXISTS auth_sessions (
@@ -129,7 +135,7 @@ const SCHEMA_STATEMENTS = [
     actor_user_id INT UNSIGNED NULL DEFAULT NULL,
     actor_email VARCHAR(190) NOT NULL,
     action ENUM('created', 'updated', 'deleted', 'registered', 'signed_in', 'signed_out') NOT NULL,
-    entity_type ENUM('schedule', 'reservation', 'user', 'session') NOT NULL,
+    entity_type ENUM('schedule', 'reservation', 'user', 'session', 'classroom') NOT NULL,
     entity_id VARCHAR(64) NULL DEFAULT NULL,
     classroom_id VARCHAR(128) NULL DEFAULT NULL,
     previous_json LONGTEXT NULL DEFAULT NULL,
@@ -312,6 +318,65 @@ async function createDatabase(options = {}) {
     await pool.query('ALTER TABLE users ADD KEY idx_users_role_active (role, is_active)');
   }
 
+  // Faculty and student roles. Databases created before these existed use a
+  // single 'user' role for everyone who is not an administrator or staff; those
+  // accounts become students, and faculty are assigned by an administrator.
+  // The enum is widened first so existing rows stay valid while they are moved.
+  const [currentRoleColumn] = await pool.query(
+    `SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'role'`
+  );
+  const roleType = currentRoleColumn.length ? currentRoleColumn[0].COLUMN_TYPE : '';
+  if (!roleType.includes("'faculty'") || roleType.includes("'user'")) {
+    await pool.query(
+      "ALTER TABLE users MODIFY COLUMN role " +
+      "ENUM('admin', 'staff', 'faculty', 'student', 'user') NOT NULL DEFAULT 'student'"
+    );
+    await pool.query("UPDATE users SET role = 'student' WHERE role = 'user'");
+    await pool.query(
+      "ALTER TABLE users MODIFY COLUMN role " +
+      "ENUM('admin', 'staff', 'faculty', 'student') NOT NULL DEFAULT 'student'"
+    );
+  }
+
+  // Encrypted school ID (personal data) plus its blind index.
+  const [schoolIdColumns] = await pool.query(
+    `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
+       AND COLUMN_NAME IN ('school_id_cipher', 'school_id_index')`
+  );
+  if (schoolIdColumns.length < 2) {
+    const present = new Set(schoolIdColumns.map((column) => column.COLUMN_NAME));
+    const additions = [];
+    if (!present.has('school_id_cipher')) {
+      additions.push('ADD COLUMN school_id_cipher VARCHAR(255) NULL DEFAULT NULL');
+    }
+    if (!present.has('school_id_index')) {
+      additions.push('ADD COLUMN school_id_index CHAR(64) NULL DEFAULT NULL');
+    }
+    await pool.query(`ALTER TABLE users ${additions.join(', ')}`);
+  }
+  const [schoolIdIndex] = await pool.query(
+    `SELECT 1 FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
+       AND INDEX_NAME = 'uq_users_school_id'`
+  );
+  if (!schoolIdIndex.length) {
+    await pool.query('ALTER TABLE users ADD UNIQUE KEY uq_users_school_id (school_id_index)');
+  }
+
+  // Classroom record edits are auditable too.
+  const [entityTypeColumn] = await pool.query(
+    `SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'activity_logs' AND COLUMN_NAME = 'entity_type'`
+  );
+  if (entityTypeColumn.length && !entityTypeColumn[0].COLUMN_TYPE.includes("'classroom'")) {
+    await pool.query(
+      "ALTER TABLE activity_logs MODIFY COLUMN entity_type " +
+      "ENUM('schedule', 'reservation', 'user', 'session', 'classroom') NOT NULL"
+    );
+  }
+
   // Databases created before reservations recorded their owner lack this
   // column; CREATE TABLE IF NOT EXISTS does not alter existing tables.
   const [ownerColumn] = await pool.query(
@@ -328,6 +393,10 @@ async function createDatabase(options = {}) {
           REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE
     `);
   }
+
+  // AES-256-GCM box for personal data held in the users table. Created up
+  // front so a missing or malformed key fails at startup, not mid-request.
+  const cipher = createCipherBox(options.encryptionKey);
 
   const run = async (sql, values = [], executor = pool) => {
     const [result] = await executor.execute(sql, values);
@@ -433,7 +502,7 @@ async function createDatabase(options = {}) {
   }
 
   const USER_FIELDS =
-    'id, first_name, middle_name, last_name, password_salt, password_hash, role, full_name, email, is_active, created_at, updated_at';
+    'id, first_name, middle_name, last_name, password_salt, password_hash, role, full_name, email, school_id_cipher, is_active, created_at, updated_at';
 
   function composeFullName({ firstName, middleName, lastName, fullName } = {}) {
     if (firstName || lastName) {
@@ -461,6 +530,9 @@ async function createDatabase(options = {}) {
       lastName: row.last_name || null,
       fullName,
       email: row.email,
+      // Decrypted here; the server only sends it to the account owner and to
+      // administrators, never in the general session payload.
+      schoolId: row.school_id_cipher ? cipher.decrypt(row.school_id_cipher) : null,
       role: row.role,
       isActive: Boolean(row.is_active),
       createdAt: row.created_at,
@@ -493,7 +565,9 @@ async function createDatabase(options = {}) {
   // Turns MySQL's duplicate-key error into a friendly 409 naming the field.
   function duplicateUserError(error) {
     if (error.code !== 'ER_DUP_ENTRY') return error;
-    return conflictError('That email address is already in use.');
+    return String(error.sqlMessage || error.message).includes('uq_users_school_id')
+      ? conflictError('That school ID is already registered.')
+      : conflictError('That email address is already in use.');
   }
 
   async function getUserByEmail(email) {
@@ -506,7 +580,7 @@ async function createDatabase(options = {}) {
     return row ? mapUser(row) : null;
   }
 
-  async function createUser({ email, password, role = 'user', ...profile }) {
+  async function createUser({ email, password, role = 'student', ...profile }) {
     if (!ROLES.includes(role)) {
       throw new Error('User role is invalid.');
     }
@@ -520,17 +594,23 @@ async function createDatabase(options = {}) {
       lastName,
       fullName: profile.fullName
     });
+    const schoolId = profile.schoolId ? String(profile.schoolId).trim() : null;
     let insertId;
     try {
       const result = await run(
-        `INSERT INTO users (first_name, middle_name, last_name, password_salt, password_hash, role, full_name, email, is_active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO users (first_name, middle_name, last_name, password_salt, password_hash, role, full_name, email, school_id_cipher, school_id_index, is_active)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [firstName, middleName, lastName, salt, hash, role, fullName, email || null,
+          cipher.encrypt(schoolId), cipher.blindIndex(schoolId),
           profile.isActive === false ? 0 : 1]
       );
       insertId = Number(result.insertId);
     } catch (error) {
       if (error.code === 'ER_DUP_ENTRY') {
+        // A duplicate school ID is a distinct problem the caller must report.
+        if (String(error.sqlMessage || '').includes('uq_users_school_id')) {
+          throw duplicateUserError(error);
+        }
         return null; // email already registered
       }
       throw error;
@@ -543,8 +623,13 @@ async function createDatabase(options = {}) {
     const values = [];
     if (q) {
       const like = `%${String(q).replace(/[\\%_]/g, '\\$&')}%`;
-      conditions.push('(first_name LIKE ? OR middle_name LIKE ? OR last_name LIKE ? OR full_name LIKE ? OR email LIKE ?)');
-      values.push(like, like, like, like, like);
+      // School IDs are encrypted, so they cannot be matched with LIKE. The
+      // blind index lets an exact school ID still be searched for.
+      conditions.push(
+        '(first_name LIKE ? OR middle_name LIKE ? OR last_name LIKE ? OR full_name LIKE ? ' +
+        'OR email LIKE ? OR school_id_index = ?)'
+      );
+      values.push(like, like, like, like, like, cipher.blindIndex(q));
     }
     if (role) {
       conditions.push('role = ?');
@@ -613,6 +698,13 @@ async function createDatabase(options = {}) {
       }
       const sets = ['first_name = ?', 'middle_name = ?', 'last_name = ?', 'full_name = ?', 'email = ?', 'role = ?', 'is_active = ?'];
       const values = [next.firstName, next.middleName, next.lastName, next.fullName, next.email, next.role, next.isActive ? 1 : 0];
+      // Only an administrator can set or clear a school ID; it is identity
+      // data, so the account holder cannot edit their own.
+      if (changes.schoolId !== undefined) {
+        const schoolId = changes.schoolId ? String(changes.schoolId).trim() : null;
+        sets.push('school_id_cipher = ?', 'school_id_index = ?');
+        values.push(cipher.encrypt(schoolId), cipher.blindIndex(schoolId));
+      }
       if (changes.password) {
         const { salt, hash } = hashPassword(changes.password);
         sets.push('password_salt = ?', 'password_hash = ?');
@@ -634,6 +726,58 @@ async function createDatabase(options = {}) {
       }
       return updated;
     });
+  }
+
+  // Administrators maintain the classroom records behind the floor plans:
+  // seating capacity and the facilities a room offers. Positions, buildings and
+  // floors come from the mapped campus layout and are not editable here.
+  async function updateClassroom(id, changes, actor) {
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [[row]] = await connection.execute(
+        `SELECT c.*, b.name AS building_name, f.label AS floor_label
+         FROM classrooms c
+         JOIN buildings b ON b.id = c.building_id
+         JOIN floors f ON f.building_id = c.building_id AND f.id = c.floor_id
+         WHERE c.id = ? FOR UPDATE`,
+        [id]
+      );
+      if (!row) {
+        throw Object.assign(new Error('Classroom not found.'), { status: 404 });
+      }
+      const previous = mapClassroom(row);
+      const capacity = changes.capacity !== undefined ? changes.capacity : previous.capacity;
+      const facilities = changes.facilities !== undefined ? changes.facilities : previous.facilities;
+      await connection.execute(
+        'UPDATE classrooms SET capacity = ?, facilities_json = ? WHERE id = ?',
+        [capacity === null ? null : Number(capacity), JSON.stringify(facilities), id]
+      );
+      const [[updatedRow]] = await connection.execute(
+        `SELECT c.*, b.name AS building_name, f.label AS floor_label
+         FROM classrooms c
+         JOIN buildings b ON b.id = c.building_id
+         JOIN floors f ON f.building_id = c.building_id AND f.id = c.floor_id
+         WHERE c.id = ?`,
+        [id]
+      );
+      const updated = mapClassroom(updatedRow);
+      if (actor) {
+        await recordActivity(
+          actor, 'updated', 'classroom', id, id,
+          { capacity: previous.capacity, facilities: previous.facilities },
+          { capacity: updated.capacity, facilities: updated.facilities },
+          connection
+        );
+      }
+      await connection.commit();
+      return updated;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 
   async function deleteUser(id, actor) {
@@ -1245,6 +1389,7 @@ async function createDatabase(options = {}) {
     listUsers,
     recordActivity,
     saveSchedule,
+    updateClassroom,
     updateOwnProfile,
     updateUser
   };
