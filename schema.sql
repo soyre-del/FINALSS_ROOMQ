@@ -76,12 +76,17 @@ CREATE TABLE IF NOT EXISTS `users` (
   `email` VARCHAR(190) NULL DEFAULT NULL,
   `password_salt` VARCHAR(64) NOT NULL,
   `password_hash` VARCHAR(128) NOT NULL,
-  `role` ENUM('admin', 'staff', 'user') NOT NULL DEFAULT 'user',
+  `role` ENUM('admin', 'staff', 'faculty', 'student') NOT NULL DEFAULT 'student',
+  -- Personal data: stored AES-256-GCM encrypted, with a keyed blind index so
+  -- the value stays unique and searchable without being readable.
+  `school_id_cipher` VARCHAR(255) NULL DEFAULT NULL,
+  `school_id_index` CHAR(64) NULL DEFAULT NULL,
   `is_active` TINYINT(1) NOT NULL DEFAULT 1,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_users_email` (`email`),
+  UNIQUE KEY `uq_users_school_id` (`school_id_index`),
   KEY `idx_users_role_active` (`role`, `is_active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -146,7 +151,7 @@ CREATE TABLE IF NOT EXISTS `activity_logs` (
   `actor_user_id` INT UNSIGNED NULL DEFAULT NULL,
   `actor_email` VARCHAR(190) NOT NULL,
   `action` ENUM('created', 'updated', 'deleted', 'registered', 'signed_in', 'signed_out') NOT NULL,
-  `entity_type` ENUM('schedule', 'reservation', 'user', 'session') NOT NULL,
+  `entity_type` ENUM('schedule', 'reservation', 'user', 'session', 'classroom') NOT NULL,
   `entity_id` VARCHAR(64) NULL DEFAULT NULL,
   `classroom_id` VARCHAR(128) NULL DEFAULT NULL,
   `previous_json` LONGTEXT NULL DEFAULT NULL,
