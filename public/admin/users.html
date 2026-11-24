@@ -43,6 +43,7 @@
               <a href="reports.html" class="nav-item"><span class="nav-icon"><i class="bi bi-bar-chart-line"></i></span>Reports</a>
               <a href="activity-logs.html" class="nav-item"><span class="nav-icon"><i class="bi bi-clock-history"></i></span>Activity Logs</a>
               <a href="users.html" class="nav-item active" aria-current="page"><span class="nav-icon"><i class="bi bi-people"></i></span>Users</a>
+              <a href="rooms.html" class="nav-item"><span class="nav-icon"><i class="bi bi-door-open"></i></span>Classroom Records</a>
             </div>
           </nav>
           <div class="profile-box" id="sidebarProfileBox">
@@ -140,13 +141,14 @@
           <section class="panel activity-filter-panel" aria-labelledby="userFilterHeading">
             <div class="schedule-section-heading"><div><p class="panel-kicker">Find accounts</p><h2 id="userFilterHeading">Search and filter</h2></div></div>
             <form id="userFilterForm" class="roomq-form" novalidate>
-              <label class="assignment-field"><span>Search</span><input type="search" id="userSearch" class="form-control" placeholder="Name or email" maxlength="100" /></label>
+              <label class="assignment-field"><span>Search</span><input type="search" id="userSearch" class="form-control" placeholder="Name, email, or exact school ID" maxlength="100" /></label>
               <label class="assignment-field"><span>Role</span>
                 <select id="userRoleFilter" class="form-select">
                   <option value="">All roles</option>
                   <option value="admin">Administrator</option>
                   <option value="staff">Staff</option>
-                  <option value="user">User</option>
+                  <option value="faculty">Faculty</option>
+                  <option value="student">Student</option>
                 </select>
               </label>
               <label class="assignment-field"><span>Status</span>
@@ -165,7 +167,7 @@
             <div class="schedule-section-heading"><div><p class="panel-kicker">Administrator only</p><h2 id="userTableHeading">Accounts</h2></div></div>
             <div class="responsive-table-wrap">
               <table class="table table-hover align-middle roomq-table">
-                <thead><tr><th>Account</th><th>Email</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Account</th><th>Email</th><th>School ID</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
                 <tbody id="userTableBody"></tbody>
               </table>
             </div>
@@ -182,11 +184,13 @@
               <label class="assignment-field"><span>Middle Name (Optional)</span><input type="text" id="userMiddleName" class="form-control" maxlength="60" autocomplete="off" /></label>
               <label class="assignment-field"><span>Last Name</span><input type="text" id="userLastName" class="form-control" maxlength="60" autocomplete="off" required /></label>
               <label class="assignment-field"><span>Email address</span><input type="email" id="userEmail" class="form-control" maxlength="190" autocomplete="off" required /></label>
+              <label class="assignment-field"><span>School ID (optional)</span><input type="text" id="userSchoolId" class="form-control" maxlength="32" autocomplete="off" placeholder="e.g. 21-1234-5678" /></label>
               <label class="assignment-field"><span>Role</span>
                 <select id="userRole" class="form-select">
                   <option value="staff">Staff</option>
+                  <option value="faculty">Faculty (can reserve rooms)</option>
+                  <option value="student">Student (view only)</option>
                   <option value="admin">Administrator</option>
-                  <option value="user">User (student)</option>
                 </select>
               </label>
               <label class="assignment-field"><span id="userPasswordLabel">Password (12 to 128 characters)</span><input type="password" id="userPassword" class="form-control" minlength="12" maxlength="128" autocomplete="new-password" /></label>

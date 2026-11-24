@@ -43,6 +43,7 @@
               <a href="reports.html" class="nav-item active" aria-current="page"><span class="nav-icon"><i class="bi bi-bar-chart-line"></i></span>Reports</a>
               <a href="activity-logs.html" class="nav-item"><span class="nav-icon"><i class="bi bi-clock-history"></i></span>Activity Logs</a>
               <a href="users.html" class="nav-item"><span class="nav-icon"><i class="bi bi-people"></i></span>Users</a>
+              <a href="rooms.html" class="nav-item"><span class="nav-icon"><i class="bi bi-door-open"></i></span>Classroom Records</a>
             </div>
           </nav>
           <div class="profile-box" id="sidebarProfileBox">
@@ -192,6 +193,31 @@
           </div>
           <p id="reportEmpty" class="schedule-empty-message" hidden>No records match the selected report filters.</p>
         </section>
+
+        <section class="panel" aria-labelledby="performanceHeading">
+          <div class="schedule-section-heading">
+            <div>
+              <p class="panel-kicker">System efficiency</p>
+              <h2 id="performanceHeading">Response times</h2>
+            </div>
+            <button type="button" id="performanceRefresh" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+          </div>
+          <p class="assignment-list-description">Measured time for the system to answer requests, against the project's two-second target for adding, editing, deleting and viewing reservations.</p>
+          <section class="schedule-summary-grid" aria-label="Response time summary">
+            <article class="summary-card summary-primary"><div class="summary-icon"><i class="bi bi-speedometer2"></i></div><div><p>Average response</p><strong id="perfAverage">—</strong></div></article>
+            <article class="summary-card"><div class="summary-icon accent"><i class="bi bi-graph-up"></i></div><div><p>95th percentile</p><strong id="perfP95">—</strong></div></article>
+            <article class="summary-card"><div class="summary-icon navy"><i class="bi bi-hourglass-top"></i></div><div><p>Slowest response</p><strong id="perfMax">—</strong></div></article>
+            <article class="summary-card"><div class="summary-icon sky"><i class="bi bi-check2-circle"></i></div><div><p>Within target</p><strong id="perfWithin">—</strong></div></article>
+          </section>
+          <p id="perfVerdict" class="assignment-feedback" role="status"></p>
+          <div class="responsive-table-wrap">
+            <table class="table table-hover align-middle roomq-table">
+              <thead><tr><th>Operation</th><th>Requests</th><th>Average</th><th>Slowest</th><th>Over target</th></tr></thead>
+              <tbody id="perfTableBody"></tbody>
+            </table>
+          </div>
+          <p id="perfEmpty" class="schedule-empty-message" hidden>No requests have been measured yet.</p>
+        </section>
         </div>
 
         <footer class="workspace-footer">
@@ -210,5 +236,6 @@
     <script src="../shared/js/roomq-data.js"></script>
     <script src="../shared/js/roomq-api.js"></script>
     <script src="js/reports.js"></script>
+    <script src="js/performance.js"></script>
   </body>
 </html>
