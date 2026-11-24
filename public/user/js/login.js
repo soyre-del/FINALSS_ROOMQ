@@ -7,6 +7,8 @@
   const lastNameField = document.getElementById('lastNameField');
   const lastName = document.getElementById('authLastName');
   const email = document.getElementById('authEmail');
+  const schoolIdField = document.getElementById('schoolIdField');
+  const schoolId = document.getElementById('authSchoolId');
   const password = document.getElementById('authPassword');
   const confirmPasswordField = document.getElementById('confirmPasswordField');
   const confirmPassword = document.getElementById('authPasswordConfirm');
@@ -152,6 +154,9 @@
       : 'Enter your email and password to access your account.';
 
     if (firstNameField) firstNameField.hidden = !registering;
+    // The school ID is identity data collected only when creating an account.
+    if (schoolIdField) schoolIdField.hidden = !registering;
+    if (schoolId) schoolId.required = registering;
     if (middleNameField) middleNameField.hidden = !registering;
     if (lastNameField) lastNameField.hidden = !registering;
     if (firstName) firstName.required = registering;
@@ -246,6 +251,17 @@
         if (email) email.focus();
         return;
       }
+      const trimmedSchoolId = schoolId ? schoolId.value.trim() : '';
+      if (!trimmedSchoolId) {
+        setFeedback('Enter the ID number on your school ID.');
+        if (schoolId) schoolId.focus();
+        return;
+      }
+      if (!/^[A-Za-z0-9][A-Za-z0-9-]{3,31}$/.test(trimmedSchoolId)) {
+        setFeedback('School ID must be 4-32 characters using letters, numbers or hyphens.');
+        if (schoolId) schoolId.focus();
+        return;
+      }
       if (password.value.length < 12) {
         setFeedback('Password must be at least 12 characters long.');
         password.focus();
@@ -280,6 +296,7 @@
           middleName: trimmedMiddle || undefined,
           lastName: trimmedLast,
           email: trimmedEmail,
+          schoolId: schoolId ? schoolId.value.trim() : '',
           password: password.value
         }
         : {

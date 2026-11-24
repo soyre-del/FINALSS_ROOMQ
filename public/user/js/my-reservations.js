@@ -71,7 +71,9 @@ document.addEventListener('DOMContentLoaded', () => {
   async function load() {
     try {
       const me = await window.RoomQApi.request('/api/me');
-      if (!me.authenticated) {
+      // Only accounts that may reserve rooms have bookings to manage here;
+      // students browse and view without booking.
+      if (!me.authenticated || !window.RoomQApi.can(me.user, 'reservations.create')) {
         panel.hidden = true;
         return;
       }
