@@ -15,6 +15,14 @@ const {
 // variables the app uses; the account must be able to CREATE/DROP databases
 // (e.g. point ROOMQ_DB_USER/PASSWORD at root, ROOMQ_DB_PORT at the host port
 // mapped by docker compose). See README "Tests".
+// The project .env is loaded by the data layer, so clear any sign-up domain
+// restriction here: the one test that needs it sets it explicitly.
+delete process.env.ROOMQ_ALLOWED_EMAIL_DOMAINS;
+
+// Fixed key for tests so encrypted columns behave deterministically; the real
+// key comes from ROOMQ_ENCRYPTION_KEY.
+const TEST_ENCRYPTION_KEY = crypto.createHash('sha256').update('roomq-test-key').digest('base64');
+
 async function setupDatabase(t) {
   const base = readEnvConfig();
   const name = `roomq_test_${crypto.randomBytes(6).toString('hex')}`;
@@ -22,6 +30,7 @@ async function setupDatabase(t) {
     database: name,
     adminEmail: 'admin@example.com',
     adminPassword: 'test-password-long-enough',
+    encryptionKey: TEST_ENCRYPTION_KEY,
     connectAttempts: 10,
     connectDelayMs: 500
   });
@@ -33,6 +42,8 @@ async function setupDatabase(t) {
     await admin.query(`DROP DATABASE IF EXISTS \`${name}\``);
     await admin.end();
   });
+  // Tests that inspect raw storage need to know which schema to look in.
+  database.databaseName = name;
   return database;
 }
 
@@ -42,7 +53,11 @@ async function startServer(t, options) {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   t.after(() => new Promise((resolve, reject) =>
     server.close((error) => error ? reject(error) : resolve())));
-  return { database, url: `http://127.0.0.1:${server.address().port}` };
+  return {
+    database,
+    databaseName: database.databaseName,
+    url: `http://127.0.0.1:${server.address().port}`
+  };
 }
 
 // A local calendar date `days` from today (reservation rules reject past dates).
@@ -63,14 +78,44 @@ async function loginCookie(url, username, password) {
   return response.headers.get('set-cookie').split(';')[0];
 }
 
-async function registerCookie(url, username, password = `${username}-password-long`) {
-  const response = await fetch(`${url}/api/register`, {
+// A fresh school ID; registration requires one and they must stay unique.
+const nextSchoolId = () => `S${crypto.randomBytes(6).toString('hex')}`;
+
+async function register(url, username, password = `${username}-password-long`, overrides = {}) {
+  return fetch(`${url}/api/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ firstName: username, lastName: 'Tester', email: em(username), password })
+    body: JSON.stringify({
+      firstName: username,
+      lastName: 'Tester',
+      email: em(username),
+      schoolId: nextSchoolId(),
+      password,
+      ...overrides
+    })
   });
+}
+
+// Self-registration creates a student.
+async function registerCookie(url, username, password = `${username}-password-long`) {
+  const response = await register(url, username, password);
   assert.equal(response.status, 200);
   return response.headers.get('set-cookie').split(';')[0];
+}
+
+// An account with a role only an administrator can grant.
+async function createAccount(adminClient, url, username, role) {
+  const password = `${username}-password-long`;
+  const created = await adminClient('POST', '/api/users', {
+    firstName: username,
+    lastName: 'Tester',
+    email: em(username),
+    schoolId: nextSchoolId(),
+    role,
+    password
+  });
+  assert.equal(created.status, 201, `create ${role} ${username}`);
+  return { id: created.json.id, cookie: await loginCookie(url, username, password), password };
 }
 
 function reservation(classroomId, overrides = {}) {
@@ -352,97 +397,91 @@ test('API protects schedule changes and returns conflicting schedule details', a
   ));
 });
 
-test('users can create accounts and reservations but cannot manage class schedules', async (t) => {
+test('self-registration creates a student who can view but not reserve', async (t) => {
   const { database, url } = await startServer(t);
   const classroomId = (await database.listClassrooms({ buildingId: 'cas', floorId: '3' }))[0].id;
 
-  const shortPassword = await fetch(`${url}/api/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'student@example.com', firstName: 'student', lastName: 'Test', password: 'short' })
-  });
-  assert.equal(shortPassword.status, 400);
+  // Sign-up validation, including the school ID the study requires.
+  assert.equal((await register(url, 'student', 'short')).status, 400);
+  assert.equal((await register(url, 'noid', 'student-password-long', { schoolId: '' })).status, 400);
+  assert.equal((await register(url, 'badid', 'student-password-long', { schoolId: 'ab' })).status, 400);
 
-  const registration = await fetch(`${url}/api/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email: 'student-1@example.com', firstName: 'student-1', lastName: 'Test',
-      password: 'student-password-long',
-      role: 'admin'
-    })
-  });
+  // A requested role is ignored: self-registration always creates a student.
+  const registration = await register(url, 'student-1', 'student-password-long', { role: 'admin' });
   assert.equal(registration.status, 200);
-  assert.equal((await registration.json()).user.role, 'user');
-  const userCookie = registration.headers.get('set-cookie').split(';')[0];
-  assert.equal((await fetch(`${url}/api/reports`, {
-    headers: { Cookie: userCookie }
-  })).status, 403);
-  assert.equal((await fetch(`${url}/api/activity-logs`, {
-    headers: { Cookie: userCookie }
-  })).status, 403);
+  const registered = await registration.json();
+  assert.equal(registered.user.role, 'student');
+  assert.equal('schoolId' in registered.user, false, 'school ID stays out of the session payload');
+  const student = client(url, registration.headers.get('set-cookie').split(';')[0]);
 
-  const userLogin = await fetch(`${url}/api/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email: 'student-1@example.com', firstName: 'student-1', lastName: 'Test',
-      password: 'student-password-long'
-    })
+  // Students view classrooms, schedules and availability...
+  assert.equal((await student('GET', '/api/classrooms')).status, 200);
+  assert.equal((await student('GET', '/api/schedules')).status, 200);
+  assert.equal((await student('GET', '/api/buildings')).status, 200);
+  assert.equal((await student(
+    'GET', `/api/availability?date=${futureDate()}&startTime=08:00&endTime=09:00`
+  )).status, 200);
+  // ...but cannot reserve rooms, add classes, or reach staff/admin data.
+  assert.equal((await student('POST', '/api/schedules', reservation(classroomId))).status, 403);
+  assert.equal((await student('POST', '/api/schedules', classSchedule(classroomId))).status, 403);
+  assert.equal((await student('GET', '/api/reports')).status, 403);
+  assert.equal((await student('GET', '/api/activity-logs')).status, 403);
+  assert.equal((await student('GET', '/api/conflicts')).status, 403);
+  assert.equal((await student('GET', '/api/users')).status, 403);
+  assert.equal((await database.listSchedules()).length, 0, 'nothing was booked');
+
+  // Duplicate email and duplicate school ID are both refused.
+  const stored = (await database.listUsers({ role: 'student' }))[0];
+  assert.match(stored.schoolId, /^S[0-9a-f]{12}$/);
+  assert.equal((await register(url, 'student-1', 'student-password-long')).status, 409);
+  const duplicateId = await register(url, 'student-9', 'student-password-long', {
+    schoolId: stored.schoolId
   });
-  assert.equal(userLogin.status, 200);
-  assert.equal((await userLogin.json()).user.role, 'user');
+  assert.equal(duplicateId.status, 409);
+  assert.match((await duplicateId.json()).error, /school ID/i);
 
-  const duplicate = await fetch(`${url}/api/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'student-1@example.com', firstName: 'student-1', lastName: 'Test', password: 'student-password-long' })
-  });
-  assert.equal(duplicate.status, 409);
-
+  // Signing in while claiming the wrong role fails.
   const roleMismatch = await fetch(`${url}/api/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      email: 'student-1@example.com', firstName: 'student-1', lastName: 'Test',
-      password: 'student-password-long',
-      role: 'admin'
+      email: em('student-1'), password: 'student-password-long', role: 'admin'
     })
   });
   assert.equal(roleMismatch.status, 401);
+});
 
-  const reservationResponse = await fetch(`${url}/api/schedules`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Cookie: userCookie },
-    body: JSON.stringify(reservation(classroomId))
-  });
-  assert.equal(reservationResponse.status, 201);
-  const reservationRecord = await reservationResponse.json();
-  assert.equal(reservationRecord.ownedByCurrentUser, true);
-  assert.equal('createdByEmail' in reservationRecord, false);
+test('faculty reserve rooms and manage only their own reservations', async (t) => {
+  const { database, url } = await startServer(t);
+  const admin = client(url, await loginCookie(url, 'admin', 'test-password-long-enough'));
+  const classroomId = (await database.listClassrooms({ buildingId: 'cas', floorId: '3' }))[0].id;
 
-  const classScheduleResponse = await fetch(`${url}/api/schedules`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Cookie: userCookie },
-    body: JSON.stringify(classSchedule(classroomId))
-  });
-  assert.equal(classScheduleResponse.status, 403);
+  const teacher = await createAccount(admin, url, 'teacher-1', 'faculty');
+  const faculty = client(url, teacher.cookie);
+  assert.deepEqual((await faculty('GET', '/api/me')).json.user.permissions, ['reservations.create']);
 
-  // Another user cannot cancel it; the owner can.
-  const otherCookie = await registerCookie(url, 'student-2');
-  assert.equal((await fetch(`${url}/api/schedules/${reservationRecord.id}`, {
-    method: 'DELETE',
-    headers: { Cookie: otherCookie }
-  })).status, 403);
+  const made = await faculty('POST', '/api/schedules', reservation(classroomId));
+  assert.equal(made.status, 201);
+  assert.equal(made.json.ownedByCurrentUser, true);
+  assert.equal('createdByEmail' in made.json, false);
 
-  const mine = await fetch(`${url}/api/my/reservations`, { headers: { Cookie: userCookie } });
-  assert.deepEqual((await mine.json()).map((item) => item.id), [reservationRecord.id]);
+  // Faculty reserve rooms; they do not create class schedules.
+  assert.equal((await faculty('POST', '/api/schedules', classSchedule(classroomId))).status, 403);
 
-  const deleteReservation = await fetch(`${url}/api/schedules/${reservationRecord.id}`, {
-    method: 'DELETE',
-    headers: { Cookie: userCookie }
-  });
-  assert.equal(deleteReservation.status, 200);
+  // Another account cannot cancel it; the owner can.
+  const otherTeacher = await createAccount(admin, url, 'teacher-2', 'faculty');
+  assert.equal(
+    (await client(url, otherTeacher.cookie)('DELETE', `/api/schedules/${made.json.id}`)).status,
+    403
+  );
+  const studentCookie = await registerCookie(url, 'onlooker');
+  assert.equal((await client(url, studentCookie)('DELETE', `/api/schedules/${made.json.id}`)).status, 403);
+
+  assert.deepEqual(
+    (await faculty('GET', '/api/my/reservations')).json.map((item) => item.id),
+    [made.json.id]
+  );
+  assert.equal((await faculty('DELETE', `/api/schedules/${made.json.id}`)).status, 200);
 });
 
 test('concurrent bookings of the same slot cannot both succeed', async (t) => {
@@ -479,9 +518,10 @@ test('invalid schedule input is rejected as a client error', async (t) => {
   assert.equal((await post(undefined, '[]')).status, 400);
 });
 
-test('user reservations follow the booking rules', async (t) => {
+test('faculty reservations follow the booking rules', async (t) => {
   const { database, url } = await startServer(t);
-  const cookie = await registerCookie(url, 'booker');
+  const admin = client(url, await loginCookie(url, 'admin', 'test-password-long-enough'));
+  const { cookie } = await createAccount(admin, url, 'booker', 'faculty');
   const rooms = await database.listClassrooms({ buildingId: 'st' });
   const post = (body) => fetch(`${url}/api/schedules`, {
     method: 'POST',
@@ -500,7 +540,7 @@ test('user reservations follow the booking rules', async (t) => {
     date: undefined
   })).status, 400);
 
-  // Course/instructor text sent by a user is not stored.
+  // Course/instructor text sent with a reservation is not stored.
   const first = await post(reservation(rooms[0].id, { course: '<img src=x onerror=alert(1)>', instructor: 'spoofed' }));
   assert.equal(first.status, 201);
   const firstRecord = await first.json();
@@ -516,20 +556,20 @@ test('user reservations follow the booking rules', async (t) => {
 
 test('schedule listings hide reservation owners from non-admins', async (t) => {
   const { database, url } = await startServer(t);
-  const userCookie = await registerCookie(url, 'owner-1');
+  const adminCookie = await loginCookie(url, 'admin', 'test-password-long-enough');
+  const admin = client(url, adminCookie);
+  const owner = await createAccount(admin, url, 'owner-1', 'faculty');
   const classroomId = (await database.listClassrooms({ buildingId: 'cas', floorId: '3' }))[0].id;
-  assert.equal((await fetch(`${url}/api/schedules`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Cookie: userCookie },
-    body: JSON.stringify(reservation(classroomId))
-  })).status, 201);
+  assert.equal(
+    (await client(url, owner.cookie)('POST', '/api/schedules', reservation(classroomId))).status,
+    201
+  );
 
   const [publicItem] = await (await fetch(`${url}/api/schedules?kind=reservation`)).json();
   assert.equal('createdByEmail' in publicItem, false);
   assert.equal('createdByUserId' in publicItem, false);
   assert.equal(publicItem.ownedByCurrentUser, false);
 
-  const adminCookie = await loginCookie(url, 'admin', 'test-password-long-enough');
   const [adminItem] = await (await fetch(`${url}/api/schedules?kind=reservation`, {
     headers: { Cookie: adminCookie }
   })).json();
@@ -617,6 +657,7 @@ test('admin self-signup requires the setup key and creates an admin session', as
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       email: 'admin-two@example.com', firstName: 'admin-two', lastName: 'Test',
+      schoolId: 'ADMIN-TWO-01',
       password: 'another-admin-password',
       setupKey: 'incorrect-private-key'
     })
@@ -628,6 +669,7 @@ test('admin self-signup requires the setup key and creates an admin session', as
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       email: 'admin-two@example.com', firstName: 'admin-two', lastName: 'Test',
+      schoolId: 'ADMIN-TWO-01',
       password: 'another-admin-password',
       setupKey: 'private-admin-setup-key-2026'
     })
@@ -697,21 +739,39 @@ async function rbacFixture(t) {
   };
 }
 
-test('permission table gives staff a limited set and administrators everything', () => {
-  const { PERMISSIONS, can, ROLE_PERMISSIONS } = require('../src/permissions');
+test('permission table matches the four user groups in the study', () => {
+  const { PERMISSIONS, ROLES, can, ROLE_PERMISSIONS } = require('../src/permissions');
+  assert.deepEqual(ROLES, ['admin', 'staff', 'faculty', 'student']);
   for (const permission of Object.values(PERMISSIONS)) {
     assert.equal(can({ role: 'admin' }, permission), true, `admin ${permission}`);
   }
-  assert.equal(can({ role: 'staff' }, PERMISSIONS.SCHEDULES_CREATE), true);
-  assert.equal(can({ role: 'staff' }, PERMISSIONS.SCHEDULES_UPDATE), true);
-  assert.equal(can({ role: 'staff' }, PERMISSIONS.CONFLICTS_VIEW), true);
+
+  // Staff carry out scheduling work.
+  for (const allowed of [
+    PERMISSIONS.SCHEDULES_CREATE, PERMISSIONS.SCHEDULES_UPDATE,
+    PERMISSIONS.RESERVATIONS_CREATE, PERMISSIONS.CONFLICTS_VIEW
+  ]) {
+    assert.equal(can({ role: 'staff' }, allowed), true, `staff ${allowed}`);
+  }
   for (const denied of [
     PERMISSIONS.SCHEDULES_DELETE, PERMISSIONS.REPORTS_VIEW, PERMISSIONS.ACTIVITY_VIEW,
-    PERMISSIONS.USERS_MANAGE, PERMISSIONS.PORTAL_ADMIN
+    PERMISSIONS.USERS_MANAGE, PERMISSIONS.PORTAL_ADMIN, PERMISSIONS.CLASSROOMS_MANAGE
   ]) {
     assert.equal(can({ role: 'staff' }, denied), false, `staff ${denied}`);
   }
-  assert.deepEqual(ROLE_PERMISSIONS.user, []);
+
+  // Faculty reserve rooms, and nothing more.
+  assert.deepEqual(ROLE_PERMISSIONS.faculty, [PERMISSIONS.RESERVATIONS_CREATE]);
+  for (const denied of [
+    PERMISSIONS.SCHEDULES_CREATE, PERMISSIONS.CONFLICTS_VIEW, PERMISSIONS.PORTAL_STAFF,
+    PERMISSIONS.PORTAL_ADMIN, PERMISSIONS.USERS_MANAGE, PERMISSIONS.CLASSROOMS_MANAGE
+  ]) {
+    assert.equal(can({ role: 'faculty' }, denied), false, `faculty ${denied}`);
+  }
+
+  // Students view only.
+  assert.deepEqual(ROLE_PERMISSIONS.student, []);
+  assert.equal(can({ role: 'student' }, PERMISSIONS.RESERVATIONS_CREATE), false);
   assert.equal(can(null, PERMISSIONS.PORTAL_STAFF), false);
   assert.equal(can({ role: 'nonsense' }, PERMISSIONS.PORTAL_STAFF), false);
 });
@@ -723,7 +783,8 @@ test('administrator creates a staff account and staff sign in with their own per
   assert.equal(me.json.user.role, 'staff');
   assert.equal(me.json.user.fullName, 'Staff One');
   assert.deepEqual([...me.json.user.permissions].sort(), [
-    'conflicts.view', 'portal.staff', 'schedules.create', 'schedules.update'
+    'conflicts.view', 'portal.staff', 'reservations.create',
+    'schedules.create', 'schedules.update'
   ]);
 
   // The role is persisted in MySQL, and the password is stored hashed.
@@ -797,9 +858,9 @@ test('staff cannot change their own role or status, however the request is made'
   const registered = await fetch(`${url}/api/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'sneaky@example.com', firstName: 'sneaky', lastName: 'Test', password: 'sneaky-password-long', role: 'staff' })
+    body: JSON.stringify({ email: 'sneaky@example.com', firstName: 'sneaky', lastName: 'Test', schoolId: 'SNEAKY-0001', password: 'sneaky-password-long', role: 'staff' })
   });
-  assert.equal((await registered.json()).user.role, 'user');
+  assert.equal((await registered.json()).user.role, 'student');
 
   assert.equal((await database.getUserById(staffId)).role, 'staff');
   assert.equal((await staff('GET', '/api/me')).json.user.role, 'staff');
@@ -930,7 +991,7 @@ test('the system always keeps one active administrator', async (t) => {
   const adminAccount = (await admin('GET', '/api/users?role=admin')).json[0];
 
   // The only administrator cannot be demoted, deactivated or deleted.
-  for (const body of [{ role: 'staff' }, { isActive: false }, { role: 'user' }]) {
+  for (const body of [{ role: 'staff' }, { isActive: false }, { role: 'student' }]) {
     assert.equal((await admin('PUT', `/api/users/${adminAccount.id}`, body)).status, 409, JSON.stringify(body));
   }
   assert.equal((await admin('DELETE', `/api/users/${adminAccount.id}`)).status, 409);
@@ -1035,13 +1096,16 @@ test('existing accounts keep their roles when an older database is upgraded', as
     if (previousAdminEmail === undefined) delete process.env.ROOMQ_ADMIN_EMAIL;
     else process.env.ROOMQ_ADMIN_EMAIL = previousAdminEmail;
   });
-  const database = await createDatabase({ database: name, connectAttempts: 5, connectDelayMs: 200 });
+  const database = await createDatabase({
+    database: name, encryptionKey: TEST_ENCRYPTION_KEY, connectAttempts: 5, connectDelayMs: 200
+  });
   t.after(() => database.close());
 
   const oldAdmin = await database.getUserByEmail('old-admin@example.com');
   const oldStudent = await database.getUserByEmail('old-student@roomq.local');
   assert.equal(oldAdmin.role, 'admin');
-  assert.equal(oldStudent.role, 'user');
+  // Accounts that predate the faculty/student split become students.
+  assert.equal(oldStudent.role, 'student');
   assert.equal(oldAdmin.is_active, 1, 'existing accounts stay active');
   assert.equal(oldAdmin.password_hash, 'bb', 'credentials are untouched');
   assert.equal((await database.listUsers()).length, 2, 'no accounts were created or lost');
@@ -1055,7 +1119,22 @@ test('existing accounts keep their roles when an older database is upgraded', as
      WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND COLUMN_NAME = 'role'`,
     [name]
   );
-  assert.match(rows[0].COLUMN_TYPE, /'admin','staff','user'/);
+  assert.match(rows[0].COLUMN_TYPE, /'admin','staff','faculty','student'/);
+  assert.equal(rows[0].COLUMN_TYPE.includes("'user'"), false, "the old 'user' role is gone");
+
+  // The faculty role an administrator can now grant.
+  const teacher = await database.createUser({
+    email: 'new-faculty@example.com', password: 'new-faculty-password', role: 'faculty',
+    firstName: 'New', lastName: 'Faculty', schoolId: 'FAC-0001'
+  });
+  assert.equal(teacher.role, 'faculty');
+  // School IDs are stored encrypted, never as readable text.
+  const [[raw]] = await admin.query(
+    `SELECT school_id_cipher FROM \`${name}\`.users WHERE email = 'new-faculty@example.com'`
+  );
+  assert.match(raw.school_id_cipher, /^v1\./);
+  assert.equal(raw.school_id_cipher.includes('FAC-0001'), false);
+  assert.equal((await database.getUserById(teacher.id)).schoolId, 'FAC-0001');
   await assert.rejects(
     () => admin.query(
       `INSERT INTO \`${name}\`.users (password_salt, password_hash, role)
@@ -1064,4 +1143,174 @@ test('existing accounts keep their roles when an older database is upgraded', as
     /Data truncated|Incorrect enum/i,
     'the database itself rejects unknown roles'
   );
+});
+
+// ---------------------------------------------------------------------------
+// Classroom records, data protection and performance (study objectives 2-5)
+// ---------------------------------------------------------------------------
+
+test('administrators maintain classroom capacity and facilities', async (t) => {
+  const { database, url } = await startServer(t);
+  const admin = client(url, await loginCookie(url, 'admin', 'test-password-long-enough'));
+  const room = (await database.listClassrooms({ buildingId: 'cas', floorId: '3' }))[0];
+  assert.equal(room.capacity, null, 'rooms start without a recorded capacity');
+  assert.deepEqual(room.facilities, []);
+
+  const saved = await admin('PUT', `/api/classrooms/${room.id}`, {
+    capacity: 45,
+    facilities: ['Projector', 'Air conditioning', 'Projector']
+  });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.json.capacity, 45);
+  assert.deepEqual(saved.json.facilities, ['Projector', 'Air conditioning'], 'duplicates removed');
+
+  // The values reach the listings that the search and filter screens read.
+  const listed = (await database.listClassrooms()).find((item) => item.id === room.id);
+  assert.equal(listed.capacity, 45);
+  assert.deepEqual(listed.facilities, ['Projector', 'Air conditioning']);
+  const viaApi = (await admin('GET', '/api/classrooms')).json.find((item) => item.id === room.id);
+  assert.equal(viaApi.capacity, 45);
+
+  // Validation.
+  assert.equal((await admin('PUT', `/api/classrooms/${room.id}`, { capacity: 0 })).status, 400);
+  assert.equal((await admin('PUT', `/api/classrooms/${room.id}`, { capacity: 9999 })).status, 400);
+  assert.equal((await admin('PUT', `/api/classrooms/${room.id}`, { capacity: 1.5 })).status, 400);
+  assert.equal((await admin('PUT', `/api/classrooms/${room.id}`, { facilities: 'projector' })).status, 400);
+  assert.equal((await admin('PUT', `/api/classrooms/${room.id}`, {})).status, 400);
+  assert.equal((await admin('PUT', '/api/classrooms/no-such-room', { capacity: 10 })).status, 404);
+
+  // Capacity can be cleared again.
+  assert.equal((await admin('PUT', `/api/classrooms/${room.id}`, { capacity: null })).json.capacity, null);
+
+  // The change is in the audit trail.
+  const logs = (await admin('GET', '/api/activity-logs?limit=50')).json.items;
+  assert.ok(logs.some((item) => item.entityType === 'classroom' && item.action === 'updated'));
+});
+
+test('only administrators may change classroom records', async (t) => {
+  const { database, url } = await startServer(t);
+  const admin = client(url, await loginCookie(url, 'admin', 'test-password-long-enough'));
+  const room = (await database.listClassrooms({ buildingId: 'cas', floorId: '3' }))[0];
+  const staff = await createAccount(admin, url, 'sched-staff', 'staff');
+  const teacher = await createAccount(admin, url, 'sched-faculty', 'faculty');
+  const studentCookie = await registerCookie(url, 'sched-student');
+
+  for (const [label, cookie] of [
+    ['staff', staff.cookie], ['faculty', teacher.cookie], ['student', studentCookie]
+  ]) {
+    const response = await client(url, cookie)('PUT', `/api/classrooms/${room.id}`, { capacity: 10 });
+    assert.equal(response.status, 403, `${label} must not edit classroom records`);
+  }
+  assert.equal((await client(url)('PUT', `/api/classrooms/${room.id}`, { capacity: 10 })).status, 401);
+  assert.equal((await database.listClassrooms()).find((item) => item.id === room.id).capacity, null);
+});
+
+test('school IDs are encrypted at rest and only shown to the owner and administrators', async (t) => {
+  const { database, url, databaseName } = await startServer(t);
+  const base = readEnvConfig();
+  const admin = client(url, await loginCookie(url, 'admin', 'test-password-long-enough'));
+
+  const registration = await register(url, 'id-holder', 'id-holder-password', { schoolId: 'NORSU-2026-7788' });
+  assert.equal(registration.status, 200);
+  const owner = client(url, registration.headers.get('set-cookie').split(';')[0]);
+
+  // Stored as ciphertext: the raw value never appears in the users table.
+  const connection = await mysql.createConnection({
+    host: base.host, port: base.port, user: base.user, password: base.password
+  });
+  t.after(() => connection.end());
+  const [rows] = await connection.query(
+    `SELECT school_id_cipher, school_id_index FROM \`${databaseName}\`.users
+     WHERE email = 'id-holder@example.com'`
+  );
+  assert.match(rows[0].school_id_cipher, /^v1\./, 'stored in the versioned AES-GCM format');
+  assert.equal(rows[0].school_id_cipher.includes('NORSU-2026-7788'), false);
+  assert.match(rows[0].school_id_index, /^[0-9a-f]{64}$/, 'blind index for uniqueness');
+  assert.equal(rows[0].school_id_index.includes('NORSU'), false);
+
+  // The owner sees their own; it is absent from the general session payload.
+  assert.equal((await owner('GET', '/api/account')).json.schoolId, 'NORSU-2026-7788');
+  assert.equal('schoolId' in (await owner('GET', '/api/me')).json.user, false);
+  // The owner cannot rewrite their own identity details.
+  assert.equal((await owner('PUT', '/api/account', { schoolId: 'OTHER-1234' })).status, 403);
+  assert.equal((await database.listUsers({ q: 'NORSU-2026-7788' })).length, 1, 'exact school ID is searchable');
+
+  // Administrators can read and correct it; other accounts cannot see it at all.
+  const [listed] = (await admin('GET', '/api/users?q=NORSU-2026-7788')).json;
+  assert.equal(listed.schoolId, 'NORSU-2026-7788');
+  assert.equal(
+    (await admin('PUT', `/api/users/${listed.id}`, { schoolId: 'NORSU-2026-0001' })).json.schoolId,
+    'NORSU-2026-0001'
+  );
+  const otherCookie = await registerCookie(url, 'nosy');
+  assert.equal((await client(url, otherCookie)('GET', '/api/users')).status, 403);
+  assert.equal((await client(url, otherCookie)('GET', `/api/users/${listed.id}`)).status, 403);
+
+  // A tampered ciphertext is detected rather than silently trusted.
+  const { createCipherBox } = require('../src/crypto-box');
+  const box = createCipherBox(TEST_ENCRYPTION_KEY);
+  const payload = box.encrypt('NORSU-2026-7788');
+  assert.equal(box.decrypt(payload), 'NORSU-2026-7788');
+  const parts = payload.split('.');
+  parts[3] = Buffer.from('tampered-value').toString('base64url');
+  assert.throws(() => box.decrypt(parts.join('.')));
+  assert.throws(() => createCipherBox(''), /ROOMQ_ENCRYPTION_KEY/);
+});
+
+test('sign-up is limited to authorized university email domains when configured', async (t) => {
+  const previous = process.env.ROOMQ_ALLOWED_EMAIL_DOMAINS;
+  process.env.ROOMQ_ALLOWED_EMAIL_DOMAINS = 'norsu.edu.ph';
+  t.after(() => {
+    if (previous === undefined) delete process.env.ROOMQ_ALLOWED_EMAIL_DOMAINS;
+    else process.env.ROOMQ_ALLOWED_EMAIL_DOMAINS = previous;
+  });
+
+  const database = await setupDatabase(t);
+  const server = createServer({ database });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise((resolve, reject) =>
+    server.close((error) => error ? reject(error) : resolve())));
+  const url = `http://127.0.0.1:${server.address().port}`;
+
+  const outsider = await register(url, 'outsider', 'outsider-password-long');
+  assert.equal(outsider.status, 400);
+  assert.match((await outsider.json()).error, /university email/i);
+
+  assert.equal((await register(url, 'scholar@norsu.edu.ph', 'scholar-password-long')).status, 200);
+  assert.equal((await register(url, 'dept@ic.norsu.edu.ph', 'dept-password-long')).status, 200,
+    'subdomains of the university are accepted');
+
+  // Administrators are the authorizing party, so they may create any address.
+  const admin = client(url, await loginCookie(url, 'admin', 'test-password-long-enough'));
+  assert.equal((await admin('POST', '/api/users', {
+    firstName: 'Guest', lastName: 'Lecturer', email: 'guest@example.com',
+    role: 'faculty', password: 'guest-lecturer-password'
+  })).status, 201);
+});
+
+test('response times are measured against the two-second target', async (t) => {
+  const { url } = await startServer(t);
+  const admin = client(url, await loginCookie(url, 'admin', 'test-password-long-enough'));
+
+  // Core operations the study names: viewing and listing reservation data.
+  await admin('GET', '/api/schedules');
+  await admin('GET', '/api/dashboard');
+
+  const metrics = await admin('GET', '/api/performance');
+  assert.equal(metrics.status, 200);
+  assert.equal(metrics.json.targetMs, 2000);
+  assert.ok(metrics.json.totalRequests > 0);
+  assert.ok(metrics.json.averageMs >= 0);
+  assert.ok(
+    metrics.json.maxMs < 2000,
+    `core operations stayed under the target (max ${metrics.json.maxMs}ms)`
+  );
+  assert.equal(metrics.json.meetsTarget, true);
+  assert.equal(metrics.json.withinTargetPercent, 100);
+  assert.ok(metrics.json.routes.some((route) => route.route === 'GET /api/schedules'));
+
+  // The figures are for administrators only.
+  const studentCookie = await registerCookie(url, 'metrics-watcher');
+  assert.equal((await client(url, studentCookie)('GET', '/api/performance')).status, 403);
+  assert.equal((await client(url)('GET', '/api/performance')).status, 401);
 });
