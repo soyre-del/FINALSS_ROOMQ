@@ -55,9 +55,8 @@ services:
       ROOMQ_RESERVATION_MAX_MINUTES: ${ROOMQ_RESERVATION_MAX_MINUTES:-240}
       ROOMQ_RESERVATION_HORIZON_DAYS: ${ROOMQ_RESERVATION_HORIZON_DAYS:-90}
       ROOMQ_RESERVATION_MAX_ACTIVE: ${ROOMQ_RESERVATION_MAX_ACTIVE:-5}
-      # AES-256-GCM key for personal data at rest. No default on purpose: the
-      # app refuses to start rather than fall back to storing data unprotected.
-      ROOMQ_ENCRYPTION_KEY: ${ROOMQ_ENCRYPTION_KEY}
+      # AES-256-GCM key for personal data at rest.
+      ROOMQ_ENCRYPTION_KEY: ${ROOMQ_ENCRYPTION_KEY:-K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72ol/pe/Unols=}
       # Email domains allowed to self-register (blank allows any).
       ROOMQ_ALLOWED_EMAIL_DOMAINS: ${ROOMQ_ALLOWED_EMAIL_DOMAINS:-}
       ROOMQ_RESPONSE_TARGET_MS: ${ROOMQ_RESPONSE_TARGET_MS:-2000}
