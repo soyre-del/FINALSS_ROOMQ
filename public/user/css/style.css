@@ -5615,69 +5615,56 @@ body:not(.auth-page),
   color: #1e3a5f;
 }
 
-/* 2. Featured Campus 3D Hero Banner (Calm Deep Navy to Soft Pale Gray-Blue Palette) */
+/* 2. Featured Campus 3D Hero Banner — Deep Navy to Soft Light Blue-White Horizontal Fade */
 .hero-campus-card {
-  /* Tweakable CSS Variables — Deep Navy to Soft Pale Gray-Blue */
-  --hero-navy-solid: #14315E;
-  --hero-blue-mid: #2F5A94;
-  --hero-blue-soft: #5B84B8;
-  --hero-pale-bg: #E8F0F7;
-  --hero-roof-primary: #3F6FA8;
-  --hero-roof-secondary: #6F96C6;
-  --hero-wall-offwhite: #EEF3F8;
-  --hero-tree-sage: #7FAE8E;
-  --hero-court-warm: #E0A060;
-  --hero-text-heading: #FFFFFF;
-  --hero-text-sub: #DCE6F2;
-  --hero-accent-pale: #C9D9EC;
-  --hero-btn-primary-bg: #F6F9FC;
-  --hero-btn-primary-hover: #EEF3F8;
-  --hero-btn-primary-text: #14315E;
-  --hero-btn-secondary-bg: rgba(255, 255, 255, 0.10);
-  --hero-btn-secondary-hover: rgba(255, 255, 255, 0.18);
-  --hero-btn-secondary-border: rgba(255, 255, 255, 0.40);
-  --hero-border-color: rgba(47, 90, 148, 0.28);
-  --hero-map-offset-x: 32px;
-  --hero-map-hue: -6deg;
-  --hero-map-saturate: 0.62;
-  --hero-map-contrast: 0.91;
-  --hero-map-brightness: 0.97;
+  --hero-navy-solid: #0d2249;
+  --hero-navy-mid: #16376e;
+  --hero-blue-mid: #2c5b9e;
+  --hero-blue-soft: #6392ce;
+  --hero-pale-blue: #e4f0fc;
+  --hero-accent: #1d7afc;
+  --hero-accent-hover: #0062cc;
+  --hero-text-heading: #ffffff;
+  --hero-text-sub: #dce8f7;
+  --hero-border-color: rgba(44, 91, 158, 0.28);
+  --hero-map-offset-x: 24px;
 
   position: relative;
   display: flex;
   align-items: center;
   justify-content: flex-start;
   width: 100%;
-  min-height: 300px;
-  padding: 2.2rem 20px 2.2rem 2.5rem;
-  margin-bottom: 1.15rem;
-  border-radius: 18px;
+  min-height: 372px;
+  padding: 2.75rem 3rem;
+  margin-bottom: 1.25rem;
+  border-radius: 22px;
   overflow: hidden;
   background-color: var(--hero-navy-solid);
-  /* Solid #14315E behind text (0-36%), cubic-eased seamless fade through #2F5A94 into #E8F0F7 (zero bands or seams) */
+  /* Long, ultra-smooth multi-stop horizontal fade from deep navy through mid-blue into soft light blue-white (zero banding, never flat gray) */
   background-image: linear-gradient(
     90deg,
-    var(--hero-navy-solid) 0%,
-    var(--hero-navy-solid) 36%,
-    #163564 40%,
-    #1B3F72 45%,
-    #244C84 50%,
-    var(--hero-blue-mid) 56%,
-    #4570A9 62%,
-    var(--hero-blue-soft) 68%,
-    #86A7CE 75%,
-    #B4CAE3 82%,
-    #D4E2F0 90%,
-    var(--hero-pale-bg) 100%
+    #0b1d40 0%,
+    #0d2249 28%,
+    #112b5a 35%,
+    #173870 41%,
+    #214988 47%,
+    #2e5da1 53%,
+    #4174b8 59%,
+    #598cce 65%,
+    #77a7e0 71%,
+    #97c0ed 77%,
+    #b6d6f6 83%,
+    #cfe5fa 89%,
+    #dfeffd 95%,
+    #e8f3fe 100%
   );
   border: 1px solid var(--hero-border-color);
   box-shadow:
-    0 10px 26px -6px rgba(20, 49, 94, 0.18),
-    0 3px 10px -2px rgba(20, 49, 94, 0.08);
+    0 16px 36px -8px rgba(11, 29, 64, 0.22),
+    0 4px 12px -2px rgba(11, 29, 64, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
   color: var(--hero-text-heading);
   isolation: isolate;
-  --rq-corner-color: var(--hero-accent-pale);
-  --rq-corner-hover-color: var(--hero-text-heading);
 }
 
 .hero-campus-media {
@@ -5689,269 +5676,291 @@ body:not(.auth-page),
   overflow: hidden;
 }
 
-/*
- * 16:9 Stage locked 1:1 to campus-layout.webp dimensions (no scaling or cropping).
- * Shifted right via --hero-map-offset-x (32px) so the rightmost campus wall sits ~20px
- * (within the 16-24px target margin) from the banner's right edge.
- */
+/* Faint dotted grid pattern in the middle that fades out smoothly along the gradient */
+.hero-middle-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.24) 1.1px, transparent 1.1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 20px 20px, 60px 60px, 60px 60px;
+  -webkit-mask-image: radial-gradient(ellipse 46% 88% at 46% 50%, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.5) 45%, transparent 80%);
+  mask-image: radial-gradient(ellipse 46% 88% at 46% 50%, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.5) 45%, transparent 80%);
+  z-index: 1;
+}
+
+/* 16:9 Stage holding the isometric campus map */
 .hero-campus-stage {
   position: absolute;
-  top: 53.5%;
+  top: 52.5%;
   right: 0;
   transform: translate(var(--hero-map-offset-x), -50%);
-  height: 105%;
+  height: 104%;
   aspect-ratio: 16 / 9;
   pointer-events: none;
   user-select: none;
-  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 1;
+  /* Soft shadow under the map so it lifts off the light blue-white background */
+  filter:
+    drop-shadow(0 18px 28px rgba(15, 42, 92, 0.22))
+    drop-shadow(0 6px 12px rgba(15, 42, 92, 0.13));
 }
 
-.hero-campus-card:hover .hero-campus-stage {
-  transform: translate(var(--hero-map-offset-x), -50%);
-}
-
-/* Mutes roofs to #3F6FA8 / #6F96C6, walls to #EEF3F8, trees to #7FAE8E, and court to #E0A060 */
 .hero-campus-img {
   width: 100%;
   height: 100%;
   object-fit: contain;
   object-position: center;
   display: block;
-  filter:
-    hue-rotate(var(--hero-map-hue))
-    saturate(var(--hero-map-saturate))
-    contrast(var(--hero-map-contrast))
-    brightness(var(--hero-map-brightness));
+  filter: saturate(0.95) contrast(0.98) brightness(1.01);
+  /* Gradual left-edge emergence from the mid-blue fade */
   -webkit-mask-image: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(0, 0, 0, 0.02) 6%,
-    rgba(0, 0, 0, 0.12) 15%,
-    rgba(0, 0, 0, 0.34) 26%,
-    rgba(0, 0, 0, 0.62) 38%,
-    rgba(0, 0, 0, 0.86) 50%,
-    rgba(0, 0, 0, 0.97) 59%,
-    #000000 66%
+    rgba(0, 0, 0, 0.05) 8%,
+    rgba(0, 0, 0, 0.22) 18%,
+    rgba(0, 0, 0, 0.52) 30%,
+    rgba(0, 0, 0, 0.82) 42%,
+    rgba(0, 0, 0, 0.96) 52%,
+    #000000 60%
   );
   mask-image: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(0, 0, 0, 0.02) 6%,
-    rgba(0, 0, 0, 0.12) 15%,
-    rgba(0, 0, 0, 0.34) 26%,
-    rgba(0, 0, 0, 0.62) 38%,
-    rgba(0, 0, 0, 0.86) 50%,
-    rgba(0, 0, 0, 0.97) 59%,
-    #000000 66%
+    rgba(0, 0, 0, 0.05) 8%,
+    rgba(0, 0, 0, 0.22) 18%,
+    rgba(0, 0, 0, 0.52) 30%,
+    rgba(0, 0, 0, 0.82) 42%,
+    rgba(0, 0, 0, 0.96) 52%,
+    #000000 60%
   );
 }
 
-/* No stage-bounded ::after overlay so no vertical seam can ever appear at the stage's left edge */
 .hero-campus-stage::after {
   content: none;
   display: none;
 }
 
-/* Single full-width seamless fade: solid #14315E behind left text, easing smoothly through #2F5A94 into clear map */
+/* Gentle atmospheric blend so the map emerges naturally from the middle gradient */
 .hero-campus-overlay {
   position: absolute;
   inset: 0;
   background: linear-gradient(
     90deg,
-    var(--hero-navy-solid) 0%,
-    var(--hero-navy-solid) 36%,
-    rgba(20, 49, 94, 0.96) 41%,
-    rgba(24, 56, 104, 0.86) 46%,
-    rgba(33, 70, 124, 0.70) 52%,
-    rgba(47, 90, 148, 0.48) 58%,
-    rgba(74, 115, 168, 0.26) 65%,
-    rgba(130, 165, 206, 0.10) 73%,
-    rgba(232, 240, 247, 0.04) 82%,
-    rgba(232, 240, 247, 0.08) 100%
+    #0b1d40 0%,
+    #0d2249 28%,
+    rgba(17, 43, 90, 0.92) 36%,
+    rgba(33, 73, 136, 0.72) 45%,
+    rgba(65, 116, 184, 0.42) 54%,
+    rgba(119, 167, 224, 0.16) 63%,
+    rgba(210, 232, 252, 0.04) 74%,
+    transparent 86%
   );
   pointer-events: none;
-  z-index: 1;
+  z-index: 2;
 }
 
+/* Left Side (Solid Navy): Brand Lockup, Single-Line Tagline, Teal CTA & Live Proof Line */
 .hero-campus-body {
   position: relative;
-  z-index: 2;
+  z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   text-align: left;
   width: 100%;
-  max-width: 500px;
+  max-width: 540px;
 }
 
-.hero-campus-kicker {
+.hero-brand-lockup {
   display: inline-flex;
   align-items: center;
-  gap: 0.48rem;
-  padding: 0.28rem 0.75rem 0.28rem 0.42rem;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--hero-accent-pale);
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(201, 217, 236, 0.36);
-  border-radius: 9999px;
-  margin-bottom: 0.92rem;
+  gap: 0.85rem;
+  margin-bottom: 0.9rem;
 }
 
-.hero-kicker-icon {
+.hero-logo-mark {
   display: inline-grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  background-color: rgba(201, 217, 236, 0.20);
-  color: var(--hero-accent-pale);
-  font-size: 0.66rem;
-  box-shadow: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.28) 0%, rgba(29, 78, 216, 0.14) 100%);
+  border: 1.5px solid rgba(147, 197, 253, 0.55);
+  box-shadow:
+    0 6px 16px -4px rgba(0, 127, 255, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  color: #93c5fd;
+  font-size: 1.32rem;
+  flex-shrink: 0;
 }
 
 .hero-campus-title {
-  margin: 0 0 0.65rem;
-  font-size: clamp(1.7rem, 2.55vw, 2.3rem);
-  font-weight: 800;
-  letter-spacing: -0.028em;
-  line-height: 1.13;
-  color: var(--hero-text-heading);
-  text-shadow: 0 1px 2px rgba(10, 25, 49, 0.24);
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: clamp(2.4rem, 3.3vw, 3rem);
+  font-weight: 700;
+  letter-spacing: -0.032em;
+  line-height: 1.05;
+  color: #ffffff;
 }
 
 .hero-campus-sub {
-  margin: 0 0 1.32rem;
-  font-size: 0.94rem;
-  font-weight: 450;
-  color: var(--hero-text-sub);
-  line-height: 1.54;
-  max-width: 440px;
+  margin: 0 0 1.65rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: clamp(1rem, 1.25vw, 1.125rem);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  color: rgba(226, 236, 249, 0.92);
+  line-height: 1.45;
+  white-space: nowrap;
 }
 
 .hero-campus-actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.9rem;
   flex-wrap: wrap;
-  margin-bottom: 1.08rem;
+  margin-bottom: 1.45rem;
 }
 
-/* Primary button: Soft white (#F6F9FC) with deep navy text (#14315E) and subtle shadow */
+/* Primary button: Royal Azure Blue (#1D7AFC -> #0062CC) matched to RoomQ palette */
 .btn-hero-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.65rem 1.32rem;
-  border-radius: 10px;
-  background-color: var(--hero-btn-primary-bg);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  color: var(--hero-btn-primary-text) !important;
-  font-size: 0.875rem;
-  font-weight: 700;
+  gap: 0.55rem;
+  padding: 0.72rem 1.48rem;
+  border-radius: 11px;
+  background: linear-gradient(180deg, #2584ff 0%, #0065d9 100%);
+  border: 1px solid rgba(147, 197, 253, 0.52);
+  color: #ffffff !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   text-decoration: none;
-  box-shadow: 0 2px 8px rgba(10, 25, 49, 0.18);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+  box-shadow:
+    0 8px 20px -4px rgba(0, 114, 245, 0.45),
+    0 2px 6px rgba(6, 18, 42, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
 }
 
 .btn-hero-primary:hover {
-  background-color: var(--hero-btn-primary-hover);
-  color: var(--hero-btn-primary-text) !important;
+  filter: brightness(1.07);
+  color: #ffffff !important;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(10, 25, 49, 0.24);
+  box-shadow:
+    0 12px 24px -4px rgba(0, 114, 245, 0.56),
+    0 4px 10px rgba(6, 18, 42, 0.28);
 }
 
-/* Secondary button: Translucent fill rgba(255,255,255,0.10) with 1px border rgba(255,255,255,0.40) */
-.btn-hero-secondary {
+/* Secondary button/link: Translucent Navy-Blue Glass matched to palette */
+.btn-hero-link {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  padding: 0.65rem 1.25rem;
-  border-radius: 10px;
-  background-color: var(--hero-btn-secondary-bg);
+  gap: 0.4rem;
+  padding: 0.68rem 1.25rem;
+  border-radius: 11px;
+  background-color: rgba(255, 255, 255, 0.09);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border: 1px solid var(--hero-btn-secondary-border);
-  color: var(--hero-text-heading) !important;
-  font-size: 0.875rem;
-  font-weight: 600;
+  border: 1px solid rgba(191, 219, 254, 0.34);
+  color: #eff6ff !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
   text-decoration: none;
-  transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
+  transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
 }
 
-.btn-hero-secondary:hover {
-  background-color: var(--hero-btn-secondary-hover);
-  border-color: rgba(255, 255, 255, 0.62);
-  color: var(--hero-text-heading) !important;
+.btn-hero-link i {
+  font-size: 0.76rem;
+  color: #93c5fd;
+  transition: transform 0.16s ease;
+}
+
+.btn-hero-link:hover {
+  background-color: rgba(255, 255, 255, 0.16);
+  border-color: rgba(191, 219, 254, 0.6);
+  color: #ffffff !important;
   transform: translateY(-1px);
 }
 
+.btn-hero-link:hover i {
+  transform: translateX(3px);
+}
+
+/* Proof line underneath with glowing sky-blue dot */
 .hero-campus-note {
   margin: 0;
-  font-size: 0.76rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.8rem;
   font-weight: 500;
-  color: var(--hero-accent-pale);
+  color: rgba(209, 224, 242, 0.88);
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.55rem;
   letter-spacing: 0.01em;
 }
 
 .hero-note-dot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background-color: var(--hero-accent-pale);
-  box-shadow: 0 0 0 3px rgba(201, 217, 236, 0.18);
+  background-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.24), 0 0 10px rgba(59, 130, 246, 0.95);
   flex-shrink: 0;
+  animation: hero-blue-pulse 2.2s infinite ease-in-out;
+}
+
+@keyframes hero-blue-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.22), 0 0 8px rgba(59, 130, 246, 0.85);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(96, 165, 250, 0.08), 0 0 14px rgba(96, 165, 250, 1);
+  }
 }
 
 @media (max-width: 1199.98px) {
   .hero-campus-stage {
-    top: 53.5%;
+    top: 52.5%;
     right: 0;
     transform: translate(24px, -50%);
-    height: 103%;
+    height: 100%;
   }
-  .hero-campus-overlay {
-    background: linear-gradient(
-      90deg,
-      var(--hero-navy-solid) 0%,
-      var(--hero-navy-solid) 36%,
-      rgba(47, 90, 148, 0.72) 52%,
-      rgba(91, 132, 184, 0.32) 66%,
-      transparent 78%
-    );
+  .hero-campus-sub {
+    white-space: normal;
   }
 }
 
 @media (max-width: 767.98px) {
   .hero-campus-card {
-    min-height: 260px;
-    padding: 1.5rem 1.35rem;
+    min-height: 290px;
+    padding: 1.75rem 1.4rem;
   }
   .hero-campus-stage {
     right: 0;
     transform: translate(16px, -50%);
-    height: 102%;
-    opacity: 0.45;
+    height: 96%;
+    opacity: 0.38;
   }
   .hero-campus-overlay {
     background: linear-gradient(
       90deg,
-      var(--hero-navy-solid) 0%,
-      rgba(20, 49, 94, 0.94) 55%,
-      rgba(47, 90, 148, 0.78) 100%
+      #0b1d40 0%,
+      rgba(13, 34, 73, 0.94) 58%,
+      rgba(44, 91, 158, 0.78) 100%
     );
   }
   .hero-campus-body {
     max-width: 100%;
+  }
+  .hero-campus-sub {
+    white-space: normal;
   }
 }
 
