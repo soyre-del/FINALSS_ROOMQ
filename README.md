@@ -53,6 +53,8 @@ Requires Docker and Docker Compose.
 Copy-Item .env.example .env
 #    Edit .env: set strong MYSQL_ROOT_PASSWORD, ROOMQ_DB_PASSWORD,
 #    ROOMQ_ADMIN_PASSWORD (>= 12 chars) and ROOMQ_ADMIN_SIGNUP_KEY (>= 16 chars).
+#    Also set ROOMQ_ENCRYPTION_KEY (required, the app will not start without it):
+#    node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 
 # 2. Build images and start the database + backend.
 docker compose up -d --build
@@ -111,6 +113,7 @@ $env:ROOMQ_DB_USER = "roomq"
 $env:ROOMQ_DB_PASSWORD = "your-db-password"
 $env:ROOMQ_DB_NAME = "roomq"
 $env:ROOMQ_ADMIN_PASSWORD = "choose-a-private-password"
+$env:ROOMQ_ENCRYPTION_KEY = "your-32-byte-base64-key"
 npm install
 npm start   # serves on http://localhost:3000 by default
 ```
